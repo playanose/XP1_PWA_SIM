@@ -4,123 +4,144 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>X-PRO1 ANALOG</title>
     <style>
-        :root { --fuji-red: #cc0000; --ui-bg: #0d0d0d; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Courier New', monospace; overflow: hidden; color: #eee; }
+        :root { --fuji-red: #cc0000; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: monospace; overflow: hidden; color: #eee; }
 
         /* Viewfinder */
-        .viewport { position: relative; width: 100vw; height: 72vh; display: flex; align-items: center; justify-content: center; background: #000; cursor: crosshair; }
-        #preview { width: 100%; height: 100%; object-fit: contain; transition: filter 0.3s ease; }
-
-        /* Rule of Thirds Grid */
-        .grid-layer { position: absolute; inset: 0; pointer-events: none; opacity: 1; transition: opacity 0.2s; z-index: 10; }
-        .grid-line { position: absolute; background: rgba(255,255,255,0.2); box-shadow: 0 0 1px rgba(0,0,0,0.4); }
-        .v1 { left: 33.3%; top: 0; width: 1px; height: 100%; }
-        .v2 { left: 66.6%; top: 0; width: 1px; height: 100%; }
-        .h1 { top: 33.3%; left: 0; height: 1px; width: 100%; }
-        .h2 { top: 66.6%; left: 0; height: 1px; width: 100%; }
-
-        /* Film Simulation Styles */
-        .sim-std   { filter: saturate(1.0) contrast(1.1); }
-        .sim-vivid { filter: saturate(1.7) contrast(1.2) brightness(0.95); }
-        .sim-soft  { filter: saturate(0.6) contrast(0.9) brightness(1.05); }
-        .sim-mono  { filter: grayscale(100%) contrast(1.4) brightness(1.1); }
-        .sim-sepia { filter: sepia(0.8) contrast(1.1) brightness(0.9); }
-
-        /* UI Control Panel */
-        .ui-panel { height: 28vh; background: var(--ui-bg); display: flex; flex-direction: column; border-top: 1px solid #222; }
-        .dial { display: flex; overflow-x: auto; padding: 12px; gap: 10px; scrollbar-width: none; }
-        .dial::-webkit-scrollbar { display: none; }
-        .mode-btn { padding: 6px 14px; border: 1px solid #333; background: #1a1a1a; font-size: 11px; color: #777; border-radius: 2px; white-space: nowrap; }
-        .mode-btn.active { background: var(--fuji-red); color: #fff; border-color: var(--fuji-red); box-shadow: 0 0 8px rgba(204, 0, 0, 0.4); }
-
-        .controls { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); }
-        .shutter-btn { width: 72px; height: 72px; background: #fff; border-radius: 50%; border: 5px solid #333; box-shadow: 0 0 0 2px #fff; transition: transform 0.1s; }
-        .shutter-btn:active { transform: scale(0.92); background: #ddd; }
+        .viewport { position: relative; width: 100vw; height: 75vh; overflow: hidden; background: #000; }
+        #preview { width: 100%; height: 100%; object-fit: contain; }
         
-        .status-block { text-align: center; width: 80px; }
-        .label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 1px; }
-        .val { font-size: 11px; color: #aaa; margin-top: 4px; display: block; }
+        /* Live Grain Overlay */
+        .grain-overlay {
+            position: absolute; inset: 0; pointer-events: none;
+            filter: url(#grain-filter); mix-blend-mode: overlay; opacity: 0.15;
+        }
+
+        /* Simulation Filters */
+        .sim-std   { filter: saturate(1.0) contrast(1.1); }
+        .sim-vivid { filter: saturate(1.8) contrast(1.2); }
+        .sim-soft  { filter: saturate(0.7) contrast(0.9); }
+        .sim-mono  { filter: grayscale(100%) contrast(1.3); }
+        .sim-sepia { filter: sepia(0.8) contrast(1.0); }
+
+        /* UI Panel */
+        .ui-panel { height: 25vh; background: #111; display: flex; flex-direction: column; border-top: 1px solid #333; }
+        .dial { display: flex; overflow-x: auto; padding: 10px; gap: 10px; }
+        .mode-btn { padding: 8px 15px; border: 1px solid #444; background: #000; font-size: 10px; color: #888; white-space: nowrap; }
+        .mode-btn.active { background: var(--fuji-red); color: #fff; }
+        .shutter-row { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; }
+        .shutter-btn { width: 65px; height: 65px; background: #fff; border-radius: 50%; border: 4px solid #333; }
+        .status-text { font-size: 9px; text-transform: uppercase; color: #666; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="viewport" id="viewport">
+<div class="viewport">
     <video id="preview" class="sim-std" autoplay playsinline></video>
-    <div class="grid-layer" id="grid">
-        <div class="grid-line v1"></div><div class="grid-line v2"></div>
-        <div class="grid-line h1"></div><div class="grid-line h2"></div>
-    </div>
+    <div class="grain-overlay"></div>
+    <div id="leak-preview" style="position:absolute; inset:0; pointer-events:none;"></div>
 </div>
 
 <div class="ui-panel">
     <div class="dial">
-        <div class="mode-btn active" data-sim="std">PROVIA/STD</div>
-        <div class="mode-btn" data-sim="vivid">VELVIA/VIVID</div>
-        <div class="mode-btn" data-sim="soft">ASTIA/SOFT</div>
-        <div class="mode-btn" data-sim="mono">MONOCHROME</div>
+        <div class="mode-btn active" data-sim="std">PROVIA</div>
+        <div class="mode-btn" data-sim="vivid">VELVIA</div>
+        <div class="mode-btn" data-sim="soft">ASTIA</div>
+        <div class="mode-btn" data-sim="mono">MONO</div>
         <div class="mode-btn" data-sim="sepia">SEPIA</div>
     </div>
-    <div class="controls">
-        <div class="status-block"><span class="label">Grain</span><span class="val" id="grain-ui">--</span></div>
+    <div class="shutter-row">
+        <div class="status-text">GRAIN<br><span id="grain-val">--</span></div>
         <button class="shutter-btn" id="shutter"></button>
-        <div class="status-block"><span class="label">Leak</span><span class="val" id="leak-ui">NONE</span></div>
+        <div class="status-text">LEAK<br><span id="leak-status">OFF</span></div>
     </div>
 </div>
 
 <canvas id="buffer" style="display:none;"></canvas>
 
 <svg style="display:none;">
-    <filter id="grain-svg">
-        <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" />
-        <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.15 0" />
+    <filter id="grain-filter">
+        <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="3" stitchTiles="stitch" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0" />
     </filter>
 </svg>
 
 <script>
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
-
     const video = document.getElementById('preview');
     const canvas = document.getElementById('buffer');
     const shutter = document.getElementById('shutter');
-    const grid = document.getElementById('grid');
-    const grainUI = document.getElementById('grain-ui');
-    const leakUI = document.getElementById('leak-ui');
+    const grainLabel = document.getElementById('grain-val');
+    const leakLabel = document.getElementById('leak-status');
 
-    // Init Native Sensor
     async function init() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment', width: { ideal: 9999 }, height: { ideal: 9999 } } 
-            });
-            video.srcObject = stream;
-        } catch (e) { alert("Camera access required."); }
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment', width:{ideal:4000} } });
+        video.srcObject = s;
     }
 
-    // Double-tap viewport to toggle grid
-    document.getElementById('viewport').addEventListener('click', (e) => {
-        if (e.detail === 2) grid.style.opacity = grid.style.opacity === '0' ? '1' : '0';
-    });
+    // 1. Generate Light Leak
+    function applyLightLeak(ctx, w, h) {
+        if (Math.random() > 0.4) { // 60% chance of a leak
+            leakLabel.innerText = "ACTIVE";
+            const x = Math.random() * w;
+            const y = Math.random() * h;
+            const radius = Math.random() * w + (w/2);
+            const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            
+            const colors = ['rgba(255,80,0,0.4)', 'rgba(255,0,0,0.3)', 'rgba(255,150,50,0.2)', 'transparent'];
+            grad.addColorStop(0, colors[Math.floor(Math.random()*3)]);
+            grad.addColorStop(1, 'transparent');
+            
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+            ctx.globalCompositeOperation = 'source-over';
+        } else {
+            leakLabel.innerText = "NONE";
+        }
+    }
 
-    // Shutter Logic
-    shutter.addEventListener('click', () => {
-        if (navigator.vibrate) navigator.vibrate(40);
-        
+    // 2. Capture Logic
+    shutter.onclick = () => {
         const ctx = canvas.getContext('2d');
         const w = video.videoWidth;
         const h = video.videoHeight;
         canvas.width = w; canvas.height = h;
 
-        // 1. Bake Simulation
+        // Apply Simulation
         ctx.filter = getComputedStyle(video).filter;
         ctx.drawImage(video, 0, 0, w, h);
 
-        // 2. Random Grain (5% - 25%)
-        const grainAmt = (Math.random() * (0.25 - 0.05) + 0.05).toFixed(2);
-        grainUI.innerText = Math.round(grainAmt * 100) + "%";
+        // Apply Random Grain (5% to 25%)
+        const grainIntensity = (Math.random() * (0.25 - 0.05) + 0.05).toFixed(2);
+        grainLabel.innerText = Math.round(grainIntensity * 100) + "%";
         
         ctx.globalCompositeOperation = 'overlay';
-        ctx.filter = `url(#grain-svg) opacity(${grainAmt})`;
+        ctx.filter = `url(#grain-filter) opacity(${grainIntensity})`;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+        // Apply Light Leak
+        applyLightLeak(ctx, w, h);
+
+        // Download
+        const link = document.createElement('a');
+        link.download = `XPRO1_ANALOG_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.click();
+    };
+
+    // Mode Selector
+    document.querySelectorAll('.mode-btn').forEach(b => {
+        b.onclick = () => {
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            b.classList.add('active');
+            video.className = 'sim-' + b.dataset.sim;
+        };
+    });
+
+    init();
+</script>
+</body>
+</html>
