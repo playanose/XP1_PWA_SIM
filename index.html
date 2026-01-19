@@ -4,21 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#000000">
-    <title>X-PRO1 Mono</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>X-PRO1 Multi-Sim</title>
     
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlgtUFJPMSBNb25vIiwKICAic2hvcnRfbmFtZSI6ICJYUHJvMSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMDAwMDAwIiwKICAidGhlbWVfY29sb3IiOiAiIzAwMDAwMCIKfQ==">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlgtUFJPMSBDYW1lcmEiLAogICJzaG9ydF9uYW1lIjogIlgtUHJvMSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMDAwMDAwIiwKICAidGhlbWVfY29sb3IiOiAiIzAwMDAwMCIKfQ==">
 
     <style>
+        :root {
+            --fuji-red: #cc0000;
+        }
         body, html {
             margin: 0; padding: 0;
             width: 100%; height: 100%;
             background: #000;
             font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
-            color: #ccc;
+            color: #eee;
         }
 
-        /* Camera Viewport */
+        /* Viewport Styling */
         .camera-container {
             position: relative;
             width: 100vw;
@@ -29,76 +33,105 @@
 
         #preview {
             width: 100%;
-            height: 80%;
+            height: 75%;
             object-fit: cover;
-            /* Fuji Mono Simulation: High Contrast, Silvery Midtones */
-            filter: grayscale(100%) contrast(1.25) brightness(1.05);
+            transition: filter 0.3s ease;
         }
 
-        /* 5-10% Random Grain Overlay */
+        /* Filter Definitions */
+        .sim-std   { filter: saturate(1.0) contrast(1.0) brightness(1.0); }
+        .sim-vivid { filter: saturate(1.8) contrast(1.2) brightness(1.0); }
+        .sim-soft  { filter: saturate(0.7) contrast(0.9) brightness(1.1); }
+        .sim-mono  { filter: grayscale(100%) contrast(1.3) brightness(1.05); }
+        .sim-sepia { filter: sepia(0.8) contrast(0.9) brightness(1.0); }
+
         .grain-overlay {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 80%;
+            top: 0; left: 0; width: 100%; height: 75%;
             pointer-events: none;
             filter: url(#fuji-noise);
             mix-blend-mode: overlay;
             z-index: 2;
-            /* Subtle animation to make grain "dance" like an EVF */
             animation: grain-dance 0.15s steps(2) infinite;
         }
 
         @keyframes grain-dance {
             0% { transform: translate(0,0); }
-            50% { transform: translate(-0.5%, -0.5%); }
             100% { transform: translate(0.5%, 0.5%); }
         }
 
-        /* UI Styling */
-        .controls {
-            height: 20%;
-            background: #111;
+        /* UI Controls */
+        .ui-panel {
+            height: 25%;
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            border-top: 2px solid #333;
+        }
+
+        .selector-dial {
+            display: flex;
+            overflow-x: auto;
+            padding: 10px;
+            gap: 15px;
+            scrollbar-width: none;
+            border-bottom: 1px solid #333;
+        }
+
+        .dial-item {
+            padding: 5px 15px;
+            border: 1px solid #444;
+            font-size: 12px;
+            white-space: nowrap;
+            background: #000;
+        }
+
+        .dial-item.active {
+            background: var(--fuji-red);
+            color: white;
+            border-color: var(--fuji-red);
+        }
+
+        .shutter-row {
+            flex-grow: 1;
             display: flex;
             justify-content: space-around;
             align-items: center;
-            border-top: 1px solid #333;
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        .info {
-            font-size: 10px;
-            letter-spacing: 1px;
-            text-align: center;
-        }
-
         .shutter-btn {
-            width: 70px;
-            height: 70px;
+            width: 65px; height: 65px;
             background: #eee;
             border-radius: 50%;
-            border: 5px solid #333;
+            border: 4px solid #333;
             box-shadow: 0 0 0 2px #eee;
-            cursor: pointer;
         }
 
-        .shutter-btn:active {
-            transform: scale(0.95);
-            background: #999;
-        }
-
+        .label { font-size: 10px; text-align: center; }
         canvas { display: none; }
     </style>
 </head>
 <body>
 
 <div class="camera-container">
-    <video id="preview" autoplay playsinline></video>
+    <video id="preview" class="sim-std" autoplay playsinline></video>
     <div class="grain-overlay"></div>
 
-    <div class="controls">
-        <div class="info">SIMULATION<br><b>MONOCHROME</b></div>
-        <button class="shutter-btn" id="shutter"></button>
-        <div class="info">GRAIN<br><b id="grain-val">5-10%</b></div>
+    <div class="ui-panel">
+        <div class="selector-dial" id="mode-dial">
+            <div class="dial-item active" data-sim="std">STD</div>
+            <div class="dial-item" data-sim="vivid">VIVID</div>
+            <div class="dial-item" data-sim="soft">SOFT</div>
+            <div class="dial-item" data-sim="mono">MONO</div>
+            <div class="dial-item" data-sim="sepia">SEPIA</div>
+        </div>
+
+        <div class="shutter-row">
+            <div class="label">AF-S<br><span id="sim-name">PROVIA</span></div>
+            <button class="shutter-btn" id="shutter"></button>
+            <div class="label">GRAIN<br><b id="grain-val">7%</b></div>
+        </div>
     </div>
 </div>
 
@@ -106,7 +139,7 @@
 
 <svg style="display:none;">
   <filter id="fuji-noise">
-    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" stitchTiles="stitch" />
+    <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" />
     <feColorMatrix id="grain-matrix" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0" />
     <feComposite operator="in" in2="SourceGraphic" />
   </filter>
@@ -118,56 +151,76 @@
     const grainMatrix = document.getElementById('grain-matrix');
     const grainLabel = document.getElementById('grain-val');
     const shutter = document.getElementById('shutter');
+    const dialItems = document.querySelectorAll('.dial-item');
+    const simNameDisplay = document.getElementById('sim-name');
 
-    // 1. Initialize Camera
-    async function initCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment", focusMode: "continuous" }, 
-                audio: false 
-            });
-            video.srcObject = stream;
-            randomizeGrain();
-        } catch (err) {
-            alert("Camera access denied. Please use HTTPS.");
-        }
+    let currentSim = 'std';
+
+    // 1. Camera Init
+    async function init() {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" }, audio: false 
+        });
+        video.srcObject = stream;
     }
 
-    // 2. Randomize Grain between 5% and 10%
+    // 2. Mode Selector Logic
+    dialItems.forEach(item => {
+        item.addEventListener('click', () => {
+            dialItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            
+            currentSim = item.dataset.sim;
+            video.className = 'sim-' + currentSim;
+            
+            // Update label to classic Fuji names
+            const names = {std:'PROVIA', vivid:'VELVIA', soft:'ASTIA', mono:'MONO', sepia:'SEPIA'};
+            simNameDisplay.innerText = names[currentSim];
+            
+            // Vary grain slightly per mode
+            randomizeGrain();
+        });
+    });
+
     function randomizeGrain() {
         const rand = (Math.random() * (0.10 - 0.05) + 0.05).toFixed(3);
         grainMatrix.setAttribute('values', `0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${rand} 0`);
-        grainLabel.innerText = (rand * 100).toFixed(1) + "%";
+        grainLabel.innerText = Math.round(rand * 100) + "%";
         return rand;
     }
 
-    // 3. Capture Photo
+    // 3. Capture & Bake Filter
     shutter.addEventListener('click', () => {
         const ctx = canvas.getContext('2d');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
-        // Apply Fuji Mono Look to Canvas
-        ctx.filter = 'grayscale(100%) contrast(1.25) brightness(1.05)';
+        // Apply current simulation to canvas
+        const filters = {
+            std: 'saturate(1.0) contrast(1.0)',
+            vivid: 'saturate(1.8) contrast(1.2)',
+            soft: 'saturate(0.7) contrast(0.9) brightness(1.1)',
+            mono: 'grayscale(100%) contrast(1.3)',
+            sepia: 'sepia(0.8) contrast(0.9)'
+        };
+
+        ctx.filter = filters[currentSim];
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Bake in the current Grain
+        // Bake Grain
         ctx.globalCompositeOperation = 'overlay';
         ctx.filter = 'url(#fuji-noise)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Download
+        // Save
         const link = document.createElement('a');
-        link.download = `XPRO1_MONO_${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.download = `XPRO1_${currentSim.toUpperCase()}_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
         link.click();
-
-        // Randomize grain for next shot
         randomizeGrain();
     });
 
-    initCamera();
+    init();
 </script>
-
 </body>
 </html>
