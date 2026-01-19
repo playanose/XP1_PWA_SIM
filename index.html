@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <title>X-PRO1 Mono</title>
+    
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlgtUFJPMSBNb25vIiwKICAic2hvcnRfbmFtZSI6ICJYUHJvMSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMDAwMDAwIiwKICAidGhlbWVfY29sb3IiOiAiIzAwMDAwMCIKfQ==">
+
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background: #000;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            color: #ccc;
+        }
+
+        /* Camera Viewport */
+        .camera-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #preview {
+            width: 100%;
+            height: 80%;
+            object-fit: cover;
+            /* Fuji Mono Simulation: High Contrast, Silvery Midtones */
+            filter: grayscale(100%) contrast(1.25) brightness(1.05);
+        }
+
+        /* 5-10% Random Grain Overlay */
+        .grain-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 80%;
+            pointer-events: none;
+            filter: url(#fuji-noise);
+            mix-blend-mode: overlay;
+            z-index: 2;
+            /* Subtle animation to make grain "dance" like an EVF */
+            animation: grain-dance 0.15s steps(2) infinite;
+        }
+
+        @keyframes grain-dance {
+            0% { transform: translate(0,0); }
+            50% { transform: translate(-0.5%, -0.5%); }
+            100% { transform: translate(0.5%, 0.5%); }
+        }
+
+        /* UI Styling */
+        .controls {
+            height: 20%;
+            background: #111;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #333;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .info {
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .shutter-btn {
+            width: 70px;
+            height: 70px;
+            background: #eee;
+            border-radius: 50%;
+            border: 5px solid #333;
+            box-shadow: 0 0 0 2px #eee;
+            cursor: pointer;
+        }
+
+        .shutter-btn:active {
+            transform: scale(0.95);
+            background: #999;
+        }
+
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="camera-container">
+    <video id="preview" autoplay playsinline></video>
+    <div class="grain-overlay"></div>
+
+    <div class="controls">
+        <div class="info">SIMULATION<br><b>MONOCHROME</b></div>
+        <button class="shutter-btn" id="shutter"></button>
+        <div class="info">GRAIN<br><b id="grain-val">5-10%</b></div>
+    </div>
+</div>
+
+<canvas id="output"></canvas>
+
+<svg style="display:none;">
+  <filter id="fuji-noise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" stitchTiles="stitch" />
+    <feColorMatrix id="grain-matrix" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0" />
+    <feComposite operator="in" in2="SourceGraphic" />
+  </filter>
+</svg>
+
+<script>
+    const video = document.getElementById('preview');
+    const canvas = document.getElementById('output');
+    const grainMatrix = document.getElementById('grain-matrix');
+    const grainLabel = document.getElementById('grain-val');
+    const shutter = document.getElementById('shutter');
+
+    // 1. Initialize Camera
+    async function initCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment", focusMode: "continuous" }, 
+                audio: false 
+            });
+            video.srcObject = stream;
+            randomizeGrain();
+        } catch (err) {
+            alert("Camera access denied. Please use HTTPS.");
+        }
+    }
+
+    // 2. Randomize Grain between 5% and 10%
+    function randomizeGrain() {
+        const rand = (Math.random() * (0.10 - 0.05) + 0.05).toFixed(3);
+        grainMatrix.setAttribute('values', `0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${rand} 0`);
+        grainLabel.innerText = (rand * 100).toFixed(1) + "%";
+        return rand;
+    }
+
+    // 3. Capture Photo
+    shutter.addEventListener('click', () => {
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        // Apply Fuji Mono Look to Canvas
+        ctx.filter = 'grayscale(100%) contrast(1.25) brightness(1.05)';
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Bake in the current Grain
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.filter = 'url(#fuji-noise)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Download
+        const link = document.createElement('a');
+        link.download = `XPRO1_MONO_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.click();
+
+        // Randomize grain for next shot
+        randomizeGrain();
+    });
+
+    initCamera();
+</script>
+
+</body>
+</html>
