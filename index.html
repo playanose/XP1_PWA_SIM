@@ -5,25 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>X-PRO1 NATIVE</title>
     <style>
-        :root { --fuji-red: #cc0000; --ui-bg: #0a0a0a; }
+        :root { --fuji-red: #cc0000; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Courier New', monospace; overflow: hidden; color: #eee; }
 
-        /* Viewfinder: Native Aspect Ratio Display */
+        /* Viewfinder */
         .viewport { position: relative; width: 100vw; height: 72vh; display: flex; align-items: center; justify-content: center; background: #000; }
         #preview { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        /* Rule of Thirds Grid */
-        .grid-layer { position: absolute; inset: 0; pointer-events: none; opacity: 1; z-index: 10; }
-        .grid-line { position: absolute; background: rgba(255,255,255,0.2); }
-        .v1 { left: 33.3%; top: 0; width: 1px; height: 100%; }
-        .v2 { left: 66.6%; top: 0; width: 1px; height: 100%; }
-        .h1 { top: 33.3%; left: 0; height: 1px; width: 100%; }
-        .h2 { top: 66.6%; left: 0; height: 1px; width: 100%; }
-
-        /* Film Simulation Styles */
+        /* Simulation Styles */
         .sim-std   { filter: saturate(1.0) contrast(1.1); }
         .sim-vivid { filter: saturate(1.8) contrast(1.2) brightness(0.95); }
         .sim-soft  { filter: saturate(0.6) contrast(0.9) brightness(1.05); }
@@ -31,29 +22,19 @@
         .sim-sepia { filter: sepia(0.8) contrast(1.1); }
 
         /* UI Panel */
-        .ui-panel { height: 28vh; background: var(--ui-bg); display: flex; flex-direction: column; border-top: 1px solid #222; }
+        .ui-panel { height: 28vh; background: #0a0a0a; display: flex; flex-direction: column; border-top: 1px solid #222; }
         .dial { display: flex; overflow-x: auto; padding: 12px; gap: 10px; scrollbar-width: none; }
-        .dial::-webkit-scrollbar { display: none; }
         .mode-btn { padding: 8px 16px; border: 1px solid #333; background: #111; font-size: 10px; color: #666; border-radius: 2px; white-space: nowrap; }
         .mode-btn.active { background: var(--fuji-red); color: #fff; border-color: var(--fuji-red); }
 
         .controls { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; }
         .shutter-btn { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #222; box-shadow: 0 0 0 2px #fff; }
-        .shutter-btn:active { transform: scale(0.9); background: #ccc; }
-        
-        .status { text-align: center; width: 70px; }
-        .label { font-size: 8px; color: #444; text-transform: uppercase; }
-        .val { font-size: 10px; color: #888; display: block; margin-top: 2px; }
     </style>
 </head>
 <body>
 
-<div class="viewport" id="v-container">
+<div class="viewport">
     <video id="preview" class="sim-std" autoplay playsinline></video>
-    <div class="grid-layer" id="grid">
-        <div class="grid-line v1"></div><div class="grid-line v2"></div>
-        <div class="grid-line h1"></div><div class="grid-line h2"></div>
-    </div>
 </div>
 
 <div class="ui-panel">
@@ -65,84 +46,67 @@
         <div class="mode-btn" data-sim="sepia">SEPIA</div>
     </div>
     <div class="controls">
-        <div class="status"><span class="label">Grain</span><span class="val" id="grain-ui">--</span></div>
         <button class="shutter-btn" id="shutter"></button>
-        <div class="status"><span class="label">Leak</span><span class="val" id="leak-ui">OFF</span></div>
     </div>
 </div>
 
 <canvas id="buffer" style="display:none;"></canvas>
 
-<svg style="display:none;">
-    <filter id="grain-svg">
-        <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" />
-        <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.18 0" />
-    </filter>
-</svg>
-
 <script>
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
-
     const video = document.getElementById('preview');
     const canvas = document.getElementById('buffer');
     const shutter = document.getElementById('shutter');
-    const grid = document.getElementById('grid');
-    const grainUI = document.getElementById('grain-ui');
-    const leakUI = document.getElementById('leak-ui');
 
     async function init() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment', width: { ideal: 9999 }, height: { ideal: 9999 } } 
-            });
-            video.srcObject = stream;
-        } catch (e) { alert("Please use HTTPS and allow camera access."); }
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment', width: { ideal: 9999 }, height: { ideal: 9999 } } 
+        });
+        video.srcObject = stream;
     }
 
-    // Double-tap to toggle Grid
-    document.getElementById('v-container').onclick = (e) => {
-        if (e.detail === 2) grid.style.opacity = grid.style.opacity === '0' ? '1' : '0';
-    };
-
-    // Main Capture Engine
     shutter.onclick = () => {
-        if (navigator.vibrate) navigator.vibrate(50);
-        
         const ctx = canvas.getContext('2d');
         const w = video.videoWidth;
         const h = video.videoHeight;
-        canvas.width = w; canvas.height = h;
+        canvas.width = w; 
+        canvas.height = h;
 
-        // 1. Capture Raw Sensor with Film Sim
+        // 1. Capture Base Image with Filter
         ctx.filter = getComputedStyle(video).filter;
         ctx.drawImage(video, 0, 0, w, h);
+        ctx.filter = 'none'; // Reset filter for overlays
 
-        // 2. Apply Random Grain (5% - 25%)
-        const grainAmt = (Math.random() * (0.25 - 0.05) + 0.05).toFixed(2);
-        grainUI.innerText = Math.round(grainAmt * 100) + "%";
-        ctx.globalCompositeOperation = 'overlay';
-        ctx.filter = `url(#grain-svg) opacity(${grainAmt})`;
-        ctx.fillRect(0, 0, w, h);
+        // 2. GRAIN ENGINE (Native procedural noise)
+        const grainAmount = Math.random() * (0.25 - 0.05) + 0.05;
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const noise = (Math.random() - 0.5) * (grainAmount * 255);
+            data[i] += noise;     // Red
+            data[i+1] += noise;   // Green
+            data[i+2] += noise;   // Blue
+        }
+        ctx.putImageData(imageData, 0, 0);
 
-        // 3. Apply Random Light Leak (50% chance)
-        if (Math.random() > 0.5) {
-            leakUI.innerText = "YES";
-            const grad = ctx.createRadialGradient(Math.random()*w, Math.random()*h, 0, Math.random()*w, Math.random()*h, w);
-            grad.addColorStop(0, 'rgba(255, 70, 0, 0.35)');
+        // 3. LIGHT LEAK (Procedural Gradient)
+        if (Math.random() > 0.4) {
+            const grad = ctx.createRadialGradient(
+                Math.random() * w, Math.random() * h, 0, 
+                Math.random() * w, Math.random() * h, w
+            );
+            grad.addColorStop(0, 'rgba(255, 80, 0, 0.3)');
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
             ctx.globalCompositeOperation = 'screen';
             ctx.fillRect(0, 0, w, h);
-        } else { leakUI.innerText = "NO"; }
+            ctx.globalCompositeOperation = 'source-over';
+        }
 
-        // 4. Save High-Res File
+        // 4. SAVE AT 90% QUALITY
         const link = document.createElement('a');
         link.download = `XPRO1_${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 1.0);
+        link.href = canvas.toDataURL('image/jpeg', 0.9); // 90% Quality
         link.click();
-        
-        // Reset state
-        ctx.globalCompositeOperation = 'source-over';
     };
 
     document.querySelectorAll('.mode-btn').forEach(btn => {
