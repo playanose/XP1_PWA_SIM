@@ -3,224 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>X-PRO1 Multi-Sim</title>
-    
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlgtUFJPMSBDYW1lcmEiLAogICJzaG9ydF9uYW1lIjogIlgtUHJvMSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMDAwMDAwIiwKICAidGhlbWVfY29sb3IiOiAiIzAwMDAwMCIKfQ==">
-
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <title>X-PRO1 NATIVE</title>
     <style>
-        :root {
-            --fuji-red: #cc0000;
-        }
-        body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            background: #000;
-            font-family: 'Courier New', Courier, monospace;
-            overflow: hidden;
-            color: #eee;
-        }
+        :root { --fuji-red: #cc0000; --ui-bg: #121212; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Courier New', monospace; overflow: hidden; color: #eee; }
 
-        /* Viewport Styling */
-        .camera-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        /* Viewfinder Section */
+        .viewport { position: relative; width: 100vw; height: 75vh; display: flex; align-items: center; justify-content: center; background: #000; }
+        #preview { width: 100%; height: 100%; object-fit: contain; transition: filter 0.3s ease; }
 
-        #preview {
-            width: 100%;
-            height: 75%;
-            object-fit: cover;
-            transition: filter 0.3s ease;
-        }
+        /* Rule of Thirds Grid */
+        .grid-layer { position: absolute; inset: 0; pointer-events: none; opacity: 1; transition: opacity 0.2s; }
+        .grid-line { position: absolute; background: rgba(255,255,255,0.3); box-shadow: 0 0 1px rgba(0,0,0,0.5); }
+        .v1 { left: 33.3%; top: 0; width: 1px; height: 100%; }
+        .v2 { left: 66.6%; top: 0; width: 1px; height: 100%; }
+        .h1 { top: 33.3%; left: 0; height: 1px; width: 100%; }
+        .h2 { top: 66.6%; left: 0; height: 1px; width: 100%; }
 
-        /* Filter Definitions */
-        .sim-std   { filter: saturate(1.0) contrast(1.0) brightness(1.0); }
-        .sim-vivid { filter: saturate(1.8) contrast(1.2) brightness(1.0); }
-        .sim-soft  { filter: saturate(0.7) contrast(0.9) brightness(1.1); }
-        .sim-mono  { filter: grayscale(100%) contrast(1.3) brightness(1.05); }
-        .sim-sepia { filter: sepia(0.8) contrast(0.9) brightness(1.0); }
+        /* Film Simulations */
+        .sim-std   { filter: saturate(1.0) contrast(1.0); }
+        .sim-vivid { filter: saturate(1.8) contrast(1.1) brightness(0.95); }
+        .sim-soft  { filter: saturate(0.7) contrast(0.9) brightness(1.05); }
+        .sim-mono  { filter: grayscale(100%) contrast(1.4) brightness(1.1); }
+        .sim-sepia { filter: sepia(0.8) contrast(0.9); }
 
-        .grain-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 75%;
-            pointer-events: none;
-            filter: url(#fuji-noise);
-            mix-blend-mode: overlay;
-            z-index: 2;
-            animation: grain-dance 0.15s steps(2) infinite;
-        }
+        /* UI Panel */
+        .ui-panel { height: 25vh; background: var(--ui-bg); display: flex; flex-direction: column; border-top: 1px solid #333; }
+        .dial { display: flex; overflow-x: auto; padding: 12px; gap: 10px; scrollbar-width: none; }
+        .dial::-webkit-scrollbar { display: none; }
+        .mode-btn { padding: 6px 14px; border: 1px solid #444; background: #000; font-size: 11px; color: #888; border-radius: 2px; }
+        .mode-btn.active { background: var(--fuji-red); color: #fff; border-color: var(--fuji-red); }
 
-        @keyframes grain-dance {
-            0% { transform: translate(0,0); }
-            100% { transform: translate(0.5%, 0.5%); }
-        }
-
-        /* UI Controls */
-        .ui-panel {
-            height: 25%;
-            background: #1a1a1a;
-            display: flex;
-            flex-direction: column;
-            border-top: 2px solid #333;
-        }
-
-        .selector-dial {
-            display: flex;
-            overflow-x: auto;
-            padding: 10px;
-            gap: 15px;
-            scrollbar-width: none;
-            border-bottom: 1px solid #333;
-        }
-
-        .dial-item {
-            padding: 5px 15px;
-            border: 1px solid #444;
-            font-size: 12px;
-            white-space: nowrap;
-            background: #000;
-        }
-
-        .dial-item.active {
-            background: var(--fuji-red);
-            color: white;
-            border-color: var(--fuji-red);
-        }
-
-        .shutter-row {
-            flex-grow: 1;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-
-        .shutter-btn {
-            width: 65px; height: 65px;
-            background: #eee;
-            border-radius: 50%;
-            border: 4px solid #333;
-            box-shadow: 0 0 0 2px #eee;
-        }
-
-        .label { font-size: 10px; text-align: center; }
-        canvas { display: none; }
+        .controls { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; padding-bottom: 10px; }
+        .shutter-btn { width: 70px; height: 70px; background: #fff; border-radius: 50%; border: 4px solid #333; box-shadow: 0 0 0 2px #fff; active { transform: scale(0.95); } }
+        .info-text { font-size: 10px; text-align: center; line-height: 1.4; color: #666; }
+        #sim-display { color: #fff; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="camera-container">
+<div class="viewport">
     <video id="preview" class="sim-std" autoplay playsinline></video>
-    <div class="grain-overlay"></div>
-
-    <div class="ui-panel">
-        <div class="selector-dial" id="mode-dial">
-            <div class="dial-item active" data-sim="std">STD</div>
-            <div class="dial-item" data-sim="vivid">VIVID</div>
-            <div class="dial-item" data-sim="soft">SOFT</div>
-            <div class="dial-item" data-sim="mono">MONO</div>
-            <div class="dial-item" data-sim="sepia">SEPIA</div>
-        </div>
-
-        <div class="shutter-row">
-            <div class="label">AF-S<br><span id="sim-name">PROVIA</span></div>
-            <button class="shutter-btn" id="shutter"></button>
-            <div class="label">GRAIN<br><b id="grain-val">7%</b></div>
-        </div>
+    <div class="grid-layer" id="grid">
+        <div class="grid-line v1"></div><div class="grid-line v2"></div>
+        <div class="grid-line h1"></div><div class="grid-line h2"></div>
     </div>
 </div>
 
-<canvas id="output"></canvas>
+<div class="ui-panel">
+    <div class="dial">
+        <div class="mode-btn active" data-sim="std">PROVIA</div>
+        <div class="mode-btn" data-sim="vivid">VELVIA</div>
+        <div class="mode-btn" data-sim="soft">ASTIA</div>
+        <div class="mode-btn" data-sim="mono">MONO</div>
+        <div class="mode-btn" data-sim="sepia">SEPIA</div>
+    </div>
+    <div class="controls">
+        <div class="info-text">DR100%<br><span id="sim-display">PROVIA</span></div>
+        <button class="shutter-btn" id="shutter"></button>
+        <div class="info-text">ISO<br>AUTO</div>
+    </div>
+</div>
 
-<svg style="display:none;">
-  <filter id="fuji-noise">
-    <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" />
-    <feColorMatrix id="grain-matrix" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0" />
-    <feComposite operator="in" in2="SourceGraphic" />
-  </filter>
-</svg>
+<canvas id="buffer" style="display:none;"></canvas>
 
 <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+
     const video = document.getElementById('preview');
-    const canvas = document.getElementById('output');
-    const grainMatrix = document.getElementById('grain-matrix');
-    const grainLabel = document.getElementById('grain-val');
+    const canvas = document.getElementById('buffer');
     const shutter = document.getElementById('shutter');
-    const dialItems = document.querySelectorAll('.dial-item');
-    const simNameDisplay = document.getElementById('sim-name');
+    const grid = document.getElementById('grid');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+    const simDisplay = document.getElementById('sim-display');
 
-    let currentSim = 'std';
-
-    // 1. Camera Init
-    async function init() {
+    // 1. Init Native Sensor
+    async function initCam() {
         const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" }, audio: false 
+            video: { facingMode: 'environment', width: { ideal: 9999 }, height: { ideal: 9999 } } 
         });
         video.srcObject = stream;
     }
 
-    // 2. Mode Selector Logic
-    dialItems.forEach(item => {
-        item.addEventListener('click', () => {
-            dialItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            
-            currentSim = item.dataset.sim;
-            video.className = 'sim-' + currentSim;
-            
-            // Update label to classic Fuji names
-            const names = {std:'PROVIA', vivid:'VELVIA', soft:'ASTIA', mono:'MONO', sepia:'SEPIA'};
-            simNameDisplay.innerText = names[currentSim];
-            
-            // Vary grain slightly per mode
-            randomizeGrain();
+    // 2. Simulation Switching
+    modeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            modeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            video.className = 'sim-' + btn.dataset.sim;
+            simDisplay.innerText = btn.innerText;
         });
     });
 
-    function randomizeGrain() {
-        const rand = (Math.random() * (0.10 - 0.05) + 0.05).toFixed(3);
-        grainMatrix.setAttribute('values', `0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${rand} 0`);
-        grainLabel.innerText = Math.round(rand * 100) + "%";
-        return rand;
-    }
+    // 3. Grid Toggle (Double Tap)
+    video.addEventListener('click', (e) => {
+        if (e.detail === 2) { grid.style.opacity = grid.style.opacity === '0' ? '1' : '0'; }
+    });
 
-    // 3. Capture & Bake Filter
+    // 4. Native Capture (No Crop)
     shutter.addEventListener('click', () => {
+        // Haptic Feedback
+        if (navigator.vibrate) navigator.vibrate(50);
+
         const ctx = canvas.getContext('2d');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
-        // Apply current simulation to canvas
-        const filters = {
-            std: 'saturate(1.0) contrast(1.0)',
-            vivid: 'saturate(1.8) contrast(1.2)',
-            soft: 'saturate(0.7) contrast(0.9) brightness(1.1)',
-            mono: 'grayscale(100%) contrast(1.3)',
-            sepia: 'sepia(0.8) contrast(0.9)'
-        };
-
-        ctx.filter = filters[currentSim];
+        ctx.filter = getComputedStyle(video).filter;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Bake Grain
-        ctx.globalCompositeOperation = 'overlay';
-        ctx.filter = 'url(#fuji-noise)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Save
         const link = document.createElement('a');
-        link.download = `XPRO1_${currentSim.toUpperCase()}_${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.download = `XPRO1_${simDisplay.innerText}_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
         link.click();
-        randomizeGrain();
     });
 
-    init();
+    initCam();
 </script>
 </body>
 </html>
