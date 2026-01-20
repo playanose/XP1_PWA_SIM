@@ -6,36 +6,37 @@
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>X-PRO1 MASTER V4</title>
+    <title>X-PRO1 MASTER</title>
     <style>
         :root { --fuji: #cc0000; --bg: #0a0a0a; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Courier New', monospace; overflow: hidden; color: #eee; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Courier New', monospace; overflow: hidden; color: #eee; -webkit-tap-highlight-color: transparent; }
 
-        /* Viewfinder */
-        .viewport { position: relative; width: 100vw; height: 72vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        /* Viewfinder: Native Full Sensor Display */
+        .viewport { position: relative; width: 100vw; height: 72vh; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
         #preview { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        /* Shutter Flash */
+        /* Shutter Flash Layer */
         #flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 100; }
         .flash-on { animation: f 0.12s ease-out; }
         @keyframes f { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
 
-        /* CSS Film Sims */
+        /* Film Simulation CSS Core */
         .sim-eterna { filter: saturate(1.4) contrast(1.1) brightness(1.05); }
-        /* LO BLEACH: Desaturated, High Contrast, Custom Hue Shift */
         .sim-lo     { filter: saturate(0.45) contrast(1.75) brightness(0.95) hue-rotate(-15deg); }
         .sim-lei    { filter: saturate(1.7) contrast(1.2); }
         .sim-urban  { filter: saturate(1.6) contrast(1.55) brightness(0.88) hue-rotate(-8deg); }
 
-        /* UI */
+        /* Control UI Panel */
         .ui { height: 28vh; background: var(--bg); display: flex; flex-direction: column; border-top: 1px solid #222; }
         .dial { display: flex; overflow-x: auto; padding: 12px; gap: 8px; border-bottom: 1px solid #1a1a1a; scrollbar-width: none; }
         .dial::-webkit-scrollbar { display: none; }
-        .btn { padding: 8px 14px; border: 1px solid #333; background: #111; font-size: 10px; color: #555; white-space: nowrap; border-radius: 2px; }
-        .btn.active { background: var(--fuji); color: #fff; border-color: var(--fuji); }
+        .btn { padding: 8px 14px; border: 1px solid #333; background: #111; font-size: 10px; color: #555; white-space: nowrap; border-radius: 2px; text-transform: uppercase; outline: none; }
+        .btn.active { background: var(--fuji); color: #fff; border-color: var(--fuji); box-shadow: 0 0 10px rgba(204,0,0,0.3); }
+
         .controls { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; }
-        .shutter { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #222; box-shadow: 0 0 0 2px #fff; }
-        .label { font-size: 8px; color: #444; text-transform: uppercase; text-align: center; }
+        .shutter { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #222; box-shadow: 0 0 0 2px #fff; cursor: pointer; }
+        .shutter:active { transform: scale(0.92); background: #ddd; }
+        .label { font-size: 8px; color: #444; text-transform: uppercase; text-align: center; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -53,9 +54,9 @@
         <button class="btn" data-sim="urban">URBAN NEG</button>
     </div>
     <div class="controls">
-        <div class="label">RECIPE<br><span id="mode-ui" style="color:#888">ETERNA</span></div>
+        <div class="label">GRAIN<br><span id="grain-ui" style="color:#888">--</span></div>
         <button class="shutter" id="shutter"></button>
-        <div class="label">JPG<br><span style="color:#888">90%</span></div>
+        <div class="label">JPG<br><span id="res-ui" style="color:#888">90%</span></div>
     </div>
 </div>
 
@@ -68,17 +69,20 @@
     const canvas = document.getElementById('buffer');
     const shutter = document.getElementById('shutter');
     const flash = document.getElementById('flash');
-    const modeUI = document.getElementById('mode-ui');
+    const grainUI = document.getElementById('grain-ui');
     let currentMode = 'eterna';
 
     async function init() {
-        const s = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } } 
-        });
-        video.srcObject = s;
+        try {
+            const s = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } } 
+            });
+            video.srcObject = s;
+        } catch (e) { alert("Camera Error: Please ensure you are using HTTPS."); }
     }
 
     shutter.onclick = async () => {
+        // Shutter Visual/Haptic Feedback
         flash.classList.add('flash-on');
         setTimeout(() => flash.classList.remove('flash-on'), 120);
         if (navigator.vibrate) navigator.vibrate(40);
@@ -88,31 +92,60 @@
         const h = video.videoHeight;
         canvas.width = w; canvas.height = h;
 
+        // 1. Bake CSS Simulation Base
         ctx.filter = getComputedStyle(video).filter;
         ctx.drawImage(video, 0, 0, w, h);
         ctx.filter = 'none';
 
         const imgData = ctx.getImageData(0, 0, w, h);
         const d = imgData.data;
-        const gAmt = { eterna: 0.25, lo: 0.08, lei: 0, urban: 0.1 }[currentMode];
+        
+        // 2. Random Grain Intensity (5% - 25% randomized every shot)
+        const randomIntensity = (Math.random() * (0.25 - 0.05) + 0.05);
+        grainUI.innerText = Math.round(randomIntensity * 100) + "%";
 
         for (let i = 0; i < d.length; i += 4) {
-            let r = d[i], g = d[i+1], b = d[i+2];
-
-            // URBAN NEGATIVE Precision
+            // URBAN NEGATIVE: Deep Cyan Shadows + Crushed Blacks
             if (currentMode === 'urban') {
-                const lum = (r + g + b) / 3;
-                if (lum < 85) { // Crushed Shadows
-                    d[i] *= 0.75;  d[i+1] += 10; d[i+2] += 15; 
+                const lum = (d[i] + d[i+1] + d[i+2]) / 3;
+                if (lum < 85) { 
+                    d[i] *= 0.75; d[i+1] += 10; d[i+2] += 15; 
                 } else if (lum > 190) { 
-                    d[i] += 12; d[i+2] -= 6;
+                    d[i] += 12; d[i+2] -= 6; 
                 }
             }
             
-            // Recipe White Balance
-            if (currentMode === 'lo') { d[i] -= 8; d[i+2] -= 15; } // R:-2, B:-4 shift
-            if (currentMode === 'lei') { d[i] += 5; d[i+2] -= 10; } // R:+1, B:-2 shift
-            if (currentMode === 'urban') { d[i] += 10; d[i+2] -= 15; } // R:+2, B:-3 shift
+            // Recipe White Balance Offsets
+            if (currentMode === 'lo') { d[i] -= 8; d[i+2] -= 15; }
+            if (currentMode === 'lei') { d[i] += 5; d[i+2] -= 10; }
+            if (currentMode === 'urban') { d[i] += 10; d[i+2] -= 15; }
 
-            // Grain
-            if (gAmt > 0) {
+            // Apply Procedural Grain
+            const noise = (Math.random() - 0.5) * (randomIntensity * 255);
+            d[i] += noise; d[i+1] += noise; d[i+2] += noise;
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        // 3. Native File Save (Blob Method)
+        canvas.toBlob(b => {
+            const u = URL.createObjectURL(b);
+            const a = document.createElement('a');
+            a.href = u; a.download = `XPRO1_${currentMode.toUpperCase()}_${Date.now()}.jpg`;
+            a.click(); URL.revokeObjectURL(u);
+        }, 'image/jpeg', 0.9);
+    };
+
+    // Mode Switching Logic
+    document.querySelectorAll('.btn').forEach(b => {
+        b.onclick = () => {
+            document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+            b.classList.add('active');
+            currentMode = b.dataset.sim;
+            video.className = 'sim-' + currentMode;
+        };
+    });
+
+    init();
+</script>
+</body>
+</html>
