@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>X-PRO1 NATIVE</title>
+    <title>X-PRO1 NATIVE FLASH</title>
     <style>
         :root { --fuji-red: #cc0000; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Courier New', monospace; overflow: hidden; color: #eee; }
@@ -13,6 +13,18 @@
         /* Viewfinder */
         .viewport { position: relative; width: 100vw; height: 72vh; display: flex; align-items: center; justify-content: center; background: #000; }
         #preview { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        /* FLASH EFFECT LAYER */
+        #flash-overlay {
+            position: absolute; inset: 0; background: white;
+            opacity: 0; pointer-events: none; z-index: 100;
+        }
+        .flash-active { animation: cameraFlash 0.15s ease-out; }
+        @keyframes cameraFlash {
+            0% { opacity: 0; }
+            50% { opacity: 0.9; }
+            100% { opacity: 0; }
+        }
 
         /* Simulation Styles */
         .sim-std   { filter: saturate(1.0) contrast(1.1); }
@@ -26,15 +38,16 @@
         .dial { display: flex; overflow-x: auto; padding: 12px; gap: 10px; scrollbar-width: none; }
         .mode-btn { padding: 8px 16px; border: 1px solid #333; background: #111; font-size: 10px; color: #666; border-radius: 2px; white-space: nowrap; }
         .mode-btn.active { background: var(--fuji-red); color: #fff; border-color: var(--fuji-red); }
-
         .controls { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; }
-        .shutter-btn { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #222; box-shadow: 0 0 0 2px #fff; }
+        .shutter-btn { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #222; box-shadow: 0 0 0 2px #fff; transition: transform 0.05s; }
+        .shutter-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
 
 <div class="viewport">
     <video id="preview" class="sim-std" autoplay playsinline></video>
+    <div id="flash-overlay"></div>
 </div>
 
 <div class="ui-panel">
@@ -56,6 +69,7 @@
     const video = document.getElementById('preview');
     const canvas = document.getElementById('buffer');
     const shutter = document.getElementById('shutter');
+    const flashOverlay = document.getElementById('flash-overlay');
 
     async function init() {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -65,35 +79,36 @@
     }
 
     shutter.onclick = () => {
+        // Trigger Flash Animation
+        flashOverlay.classList.remove('flash-active');
+        void flashOverlay.offsetWidth; // Trigger reflow to restart animation
+        flashOverlay.classList.add('flash-active');
+
+        if (navigator.vibrate) navigator.vibrate(40);
+
         const ctx = canvas.getContext('2d');
         const w = video.videoWidth;
         const h = video.videoHeight;
-        canvas.width = w; 
-        canvas.height = h;
+        canvas.width = w; canvas.height = h;
 
         // 1. Capture Base Image with Filter
         ctx.filter = getComputedStyle(video).filter;
         ctx.drawImage(video, 0, 0, w, h);
-        ctx.filter = 'none'; // Reset filter for overlays
+        ctx.filter = 'none';
 
-        // 2. GRAIN ENGINE (Native procedural noise)
+        // 2. GRAIN ENGINE
         const grainAmount = Math.random() * (0.25 - 0.05) + 0.05;
         const imageData = ctx.getImageData(0, 0, w, h);
         const data = imageData.data;
         for (let i = 0; i < data.length; i += 4) {
             const noise = (Math.random() - 0.5) * (grainAmount * 255);
-            data[i] += noise;     // Red
-            data[i+1] += noise;   // Green
-            data[i+2] += noise;   // Blue
+            data[i] += noise; data[i+1] += noise; data[i+2] += noise;
         }
         ctx.putImageData(imageData, 0, 0);
 
-        // 3. LIGHT LEAK (Procedural Gradient)
+        // 3. LIGHT LEAK
         if (Math.random() > 0.4) {
-            const grad = ctx.createRadialGradient(
-                Math.random() * w, Math.random() * h, 0, 
-                Math.random() * w, Math.random() * h, w
-            );
+            const grad = ctx.createRadialGradient(Math.random()*w, Math.random()*h, 0, Math.random()*w, Math.random()*h, w);
             grad.addColorStop(0, 'rgba(255, 80, 0, 0.3)');
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
@@ -105,7 +120,7 @@
         // 4. SAVE AT 90% QUALITY
         const link = document.createElement('a');
         link.download = `XPRO1_${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.9); // 90% Quality
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
         link.click();
     };
 
