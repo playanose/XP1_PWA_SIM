@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xpro1-v2';
+const CACHE_NAME = 'xpro1-recipes-v3';
 const ASSETS = ['index.html', 'manifest.json', 'icon.png'];
 
 self.addEventListener('install', (e) => {
