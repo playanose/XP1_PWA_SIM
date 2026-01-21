@@ -2,178 +2,93 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
     <title>X-PRO1 MASTER</title>
     <style>
-        :root { --fuji: #cc0000; --ui-bg: rgba(15, 15, 15, 0.9); }
-        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:'Courier New', monospace; overflow:hidden; color:#eee; }
-        
-        /* FULL SENSOR VIEWPORT */
+        :root { --fuji: #cc0000; }
+        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:monospace; overflow:hidden; -webkit-user-select:none; }
         .viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 1; }
-        #preview { width: 100%; height: 100%; object-fit: contain; background: #000; }
-        
-        /* UI OVERLAYS */
-        .ui-header {
-            position: absolute; top: 0; width: 100%; height: 50px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-            z-index: 10; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; box-sizing: border-box; font-size: 10px; letter-spacing: 1px;
-        }
-
-        .ui-footer { 
-            position: absolute; bottom: 0; width: 100%; height: 220px;
-            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
-            z-index: 10; display: flex; flex-direction: column; 
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-        
-        /* SCROLLABLE 25 RECIPE DIAL */
-        .dial { 
-            display:flex; overflow-x:auto; padding:15px; gap:8px; 
-            scrollbar-width:none; -webkit-overflow-scrolling:touch;
-        }
+        #preview { width: 100%; height: 100%; object-fit: contain; }
+        .ev-container { position: absolute; right: 10px; top: 20%; bottom: 40%; width: 40px; z-index: 20; display: flex; flex-direction: column; align-items: center; }
+        #ev-slider { appearance: none; width: 180px; height: 2px; background: rgba(255,255,255,0.3); transform: rotate(-90deg); transform-origin: center; margin-top: 80px; outline: none; }
+        #ev-slider::-webkit-slider-thumb { appearance: none; width: 10px; height: 30px; background: #fff; border-radius: 1px; }
+        .ui-footer { position: absolute; bottom: 0; width: 100%; height: 200px; background: linear-gradient(to top, rgba(0,0,0,0.95) 75%, transparent); z-index: 10; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+        .filter-nav { display: flex; justify-content: center; gap: 30px; padding: 12px 0; border-bottom: 1px solid #222; }
+        .nav-item { font-size: 11px; color: #444; letter-spacing: 1px; cursor: pointer; }
+        .nav-item.active { color: var(--fuji); font-weight: bold; }
+        .dial { display:flex; overflow-x:auto; padding:15px 10px; gap:8px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
         .dial::-webkit-scrollbar { display:none; }
-        
-        .recipe-chip { 
-            padding:10px 18px; background: rgba(30,30,30,0.7); border:1px solid #333; 
-            color:#888; font-size:10px; white-space:nowrap; text-transform:uppercase;
-            transition: 0.2s;
-        }
-        .recipe-chip.active { color:#fff; border-color:var(--fuji); background:var(--fuji); font-weight: bold; }
-
-        .shutter-row { display: flex; justify-content: space-around; align-items: center; flex-grow: 1; margin-bottom: 10px; }
-        .shutter-btn { 
-            width: 75px; height: 75px; background: #fff; border-radius: 50%; 
-            border: 6px solid #222; box-shadow: 0 0 0 2px #fff; outline: none;
-            transition: transform 0.1s;
-        }
-        .shutter-btn:active { transform: scale(0.92); }
-        
+        .recipe-chip { padding:10px 16px; background: rgba(25,25,25,0.8); border:1px solid #333; color:#666; font-size:10px; white-space:nowrap; text-transform:uppercase; }
+        .recipe-chip.active { color:#fff; border-color:var(--fuji); background:var(--fuji); font-weight:bold; }
+        .shutter-row { display: flex; justify-content: space-around; align-items: center; flex-grow: 1; }
+        .shutter-btn { width: 72px; height: 72px; background: #fff; border-radius: 50%; border: 5px solid #111; box-shadow: 0 0 0 2px #fff; }
+        .shutter-btn:active { transform: scale(0.94); }
         #flash { position:fixed; inset:0; background:white; opacity:0; pointer-events:none; z-index:100; }
-        .flash-active { animation: flash-fx 0.1s ease-out; }
-        @keyframes flash-fx { 0% { opacity:0; } 50% { opacity:1; } 100% { opacity:0; } }
+        .f-on { animation: f 0.05s linear; }
+        @keyframes f { 0% { opacity:1; } 100% { opacity:0; } }
     </style>
 </head>
 <body>
-
 <div id="flash"></div>
-<div class="ui-header">
-    <div>X-PRO1 <span style="color:var(--fuji)">●</span></div>
-    <div id="res-label">-- x --</div>
-</div>
-
-<div class="viewport">
-    <video id="preview" autoplay playsinline></video>
-</div>
-
+<div class="viewport"><video id="preview" autoplay playsinline></video></div>
+<div class="ev-container"><div style="font-size:10px;color:#fff;margin-bottom:10px;">EV</div><input type="range" id="ev-slider" min="0.5" max="1.5" step="0.05" value="1.0"></div>
 <div class="ui-footer">
+    <div class="filter-nav"><span class="nav-item active" id="mode-all" onclick="filterList('all')">ALL</span><span class="nav-item" id="mode-bw" onclick="filterList('bw')">B&W</span></div>
     <div class="dial" id="recipe-dial"></div>
-    <div class="shutter-row">
-        <div style="text-align:center; font-size:9px; color:#666;">RAW+F<br>AF-C</div>
-        <button class="shutter-btn" id="shutter"></button>
-        <div style="text-align:center; font-size:9px; color:#666;">ISO<br>AUTO</div>
-    </div>
+    <div class="shutter-row"><div style="font-size:9px;color:#333;text-align:center;">F-BAKE</div><button class="shutter-btn" id="shutter"></button><div style="font-size:9px;color:#333;text-align:center;">NATIVE</div></div>
 </div>
-
 <canvas id="buffer" style="display:none;"></canvas>
-
 <script>
-    const video = document.getElementById('preview');
-    const shutter = document.getElementById('shutter');
-    const resLabel = document.getElementById('res-label');
-    const recipeDial = document.getElementById('recipe-dial');
-    
-    // THE 25 MASTER RECIPES (2025 Edition)
+    const video = document.getElementById('preview'), shutter = document.getElementById('shutter'), dial = document.getElementById('recipe-dial'), evSlider = document.getElementById('ev-slider');
     const recipes = [
-        { name: "Reggie Portra", sat: 0.92, con: 1.15, hue: 5, grain: 0.05 },
-        { name: "Kodachrome 64", sat: 1.10, con: 1.35, hue: -5, grain: 0.08 },
-        { name: "Pacific Blue", sat: 1.05, con: 1.20, hue: -18, grain: 0.12 },
-        { name: "Vibrant Arizona", sat: 1.40, con: 1.05, hue: 12, grain: 0.04 },
-        { name: "Classic Neg", sat: 1.20, con: 1.25, hue: -12, grain: 0.10 },
-        { name: "Kodak Tri-X", sat: 0.00, con: 1.60, hue: 0, grain: 0.35 },
-        { name: "Superia 400", sat: 1.15, con: 1.10, hue: -8, grain: 0.06 },
-        { name: "CineStill 800T", sat: 1.30, con: 1.15, hue: -25, grain: 0.15 },
-        { name: "Vintage Koda", sat: 0.85, con: 1.40, hue: 3, grain: 0.20 },
-        { name: "Pro 400H", sat: 1.05, con: 0.95, hue: -10, grain: 0.05 },
-        { name: "Ilford HP5", sat: 0.00, con: 1.20, hue: 0, grain: 0.25 },
-        { name: "Aged Color", sat: 0.70, con: 0.90, hue: 15, grain: 0.18 },
-        { name: "Warm Eterna", sat: 1.10, con: 0.85, hue: 8, grain: 0.03 },
-        { name: "Urban Chrome", sat: 0.80, con: 1.50, hue: -5, grain: 0.12 },
-        { name: "Nostalgic Neg", sat: 1.10, con: 1.05, hue: 6, grain: 0.08 },
-        { name: "Astia Soft", sat: 1.25, con: 0.90, hue: 2, grain: 0.02 },
-        { name: "Velvia Vivid", sat: 1.60, con: 1.40, hue: 0, grain: 0.02 },
-        { name: "Ektar 100", sat: 1.50, con: 1.25, hue: 5, grain: 0.04 },
-        { name: "Provia Std", sat: 1.00, con: 1.00, hue: 0, grain: 0.00 },
-        { name: "Acros Red", sat: 0.00, con: 1.80, hue: 0, grain: 0.15 },
-        { name: "Chrome Plus", sat: 0.85, con: 1.30, hue: -3, grain: 0.08 },
-        { name: "Gold 200", sat: 1.20, con: 1.10, hue: 10, grain: 0.10 },
-        { name: "Bleach Bypass", sat: 0.50, con: 1.70, hue: -5, grain: 0.22 },
-        { name: "Reala Ace", sat: 1.10, con: 1.05, hue: -2, grain: 0.04 },
-        { name: "Midnight Teal", sat: 1.15, con: 1.30, hue: -20, grain: 0.10 }
+        { n: "PORTRA", s: 0.9, c: 1.1, h: 5, bw: false }, { n: "KODA-64", s: 1.1, c: 1.3, h: -5, bw: false }, { n: "PAC-BLUE", s: 1.0, c: 1.2, h: -18, bw: false },
+        { n: "TRI-X", s: 0, c: 1.6, h: 0, bw: true }, { n: "ACROS", s: 0, c: 1.8, h: 0, bw: true }, { n: "HP5", s: 0, c: 1.2, h: 0, bw: true },
+        { n: "CL-NEG", s: 1.2, c: 1.2, h: -12, bw: false }, { n: "SUPR-400", s: 1.1, c: 1.1, h: -8, bw: false }, { n: "CINE-800", s: 1.3, c: 1.1, h: -25, bw: false },
+        { n: "ILFORD", s: 0, c: 1.1, h: 0, bw: true }, { n: "GOLD-200", s: 1.2, c: 1.1, h: 10, bw: false }, { n: "ASTIA", s: 1.2, c: 0.9, h: 2, bw: false },
+        { n: "VELVIA", s: 1.6, c: 1.4, h: 0, bw: false }, { n: "EKTAR", s: 1.5, c: 1.2, h: 5, bw: false }, { n: "HI-BW", s: 0, c: 2.0, h: 0, bw: true },
+        { n: "URBN-CH", s: 0.8, c: 1.5, h: -5, bw: false }, { n: "NOST-NG", s: 1.1, c: 1.0, h: 6, bw: false }, { n: "ETERNA", s: 1.1, c: 0.8, h: 8, bw: false },
+        { n: "REALA", s: 1.1, c: 1.0, h: -2, bw: false }, { n: "BLEACH", s: 0.5, c: 1.7, h: -5, bw: false }, { n: "SEPIA", s: 0.4, c: 1.1, h: 10, bw: true },
+        { n: "MID-TEAL", s: 1.1, c: 1.3, h: -22, bw: false }, { n: "CHRO-PL", s: 0.8, c: 1.3, h: -3, bw: false }, { n: "PROVIA", s: 1.0, c: 1.0, h: 0, bw: false },
+        { n: "VNTG-KD", s: 0.8, c: 1.4, h: 3, bw: false }
     ];
-
-    let activeRecipe = recipes[0];
-
-    async function startCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment', width: { ideal: 9999 }, height: { ideal: 9999 } } 
-            });
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                resLabel.innerText = `${video.videoWidth} x ${video.videoHeight} NATIVE`;
-            };
-        } catch (err) { console.error("Camera error:", err); }
+    let active = recipes[0];
+    async function init() {
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 4096 }, height: { ideal: 4096 } } });
+        video.srcObject = s; filterList('all');
     }
-
-    recipes.forEach(r => {
-        const chip = document.createElement('div');
-        chip.className = 'recipe-chip' + (r === activeRecipe ? ' active' : '');
-        chip.innerText = r.name;
-        chip.onclick = () => {
-            document.querySelectorAll('.recipe-chip').forEach(c => c.classList.remove('active'));
-            chip.classList.add('active');
-            activeRecipe = r;
-            video.style.filter = `saturate(${r.sat}) contrast(${r.con}) hue-rotate(${r.hue}deg)`;
-        };
-        recipeDial.appendChild(chip);
-    });
-
+    const getFilter = () => `saturate(${active.s}) contrast(${active.c}) hue-rotate(${active.h}deg) brightness(${evSlider.value}) ${active.bw ? 'grayscale(1)' : ''}`;
+    evSlider.oninput = () => video.style.filter = getFilter();
+    function filterList(m) {
+        dial.innerHTML = ''; document.getElementById('mode-all').classList.toggle('active', m === 'all'); document.getElementById('mode-bw').classList.toggle('active', m === 'bw');
+        const f = m === 'bw' ? recipes.filter(r => r.bw) : recipes;
+        f.forEach(r => {
+            const b = document.createElement('div'); b.className = 'recipe-chip' + (r === active ? ' active' : ''); b.innerText = r.n;
+            b.onclick = () => { document.querySelectorAll('.recipe-chip').forEach(c => c.classList.remove('active')); b.classList.add('active'); active = r; video.style.filter = getFilter(); };
+            dial.appendChild(b);
+        });
+    }
     shutter.onclick = () => {
-        const flash = document.getElementById('flash');
-        flash.classList.add('flash-active');
-        setTimeout(() => flash.classList.remove('flash-active'), 100);
-        if(navigator.vibrate) navigator.vibrate(50);
-
-        const canvas = document.getElementById('buffer');
-        const ctx = canvas.getContext('2d');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        ctx.filter = video.style.filter;
-        ctx.drawImage(video, 0, 0);
+        const fl = document.getElementById('flash'); fl.classList.add('f-on'); setTimeout(() => fl.classList.remove('f-on'), 60); if(navigator.vibrate) navigator.vibrate(40);
+        const c = document.getElementById('buffer'), ctx = c.getContext('2d', { alpha: false });
+        c.width = video.videoWidth; c.height = video.videoHeight;
+        ctx.filter = getFilter(); ctx.drawImage(video, 0, 0);
         
-        // Add Film Grain
-        if(activeRecipe.grain > 0) {
-            const idat = ctx.getImageData(0,0,canvas.width,canvas.height);
-            const d = idat.data;
-            for(let i=0; i<d.length; i+=4) {
-                const n = (Math.random()-0.5)*(activeRecipe.grain * 255);
-                d[i]+=n; d[i+1]+=n; d[i+2]+=n;
-            }
-            ctx.putImageData(idat,0,0);
+        let gAlpha = (Math.random() * 0.15 + 0.05); if(active.bw) gAlpha *= 2; // Double grain for B&W
+        ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = gAlpha;
+        for (let i = 0; i < 60; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+            ctx.fillRect(Math.random()*c.width, Math.random()*c.height, Math.max(1, c.width/3000), Math.max(1, c.width/3000));
         }
-
-        const link = document.createElement('a');
-        link.download = `XPRO_${activeRecipe.name.replace(/ /g,'')}_${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.95);
-        link.click();
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1.0;
+        const n = new Date(), ts = n.getFullYear() + (n.getMonth()+1).toString().padStart(2,'0') + n.getDate().toString().padStart(2,'0') + "_" + n.getHours().toString().padStart(2,'0') + n.getMinutes().toString().padStart(2,'0') + n.getSeconds().toString().padStart(2,'0');
+        c.toBlob((b) => {
+            const a = document.createElement('a'), u = URL.createObjectURL(b); a.href = u; a.download = `XPRO_${ts}.jpg`; a.click();
+            setTimeout(() => URL.revokeObjectURL(u), 200);
+        }, 'image/jpeg', 0.95);
     };
-
-    startCamera();
+    init();
 </script>
 </body>
 </html>
