@@ -3,57 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
     <title>X-PRO1 MASTER</title>
     <style>
         :root { --fuji: #cc0000; --bg: #000; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Courier New', monospace; overflow: hidden; color: #eee; }
+        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:'Courier New', monospace; overflow:hidden; color:#eee; }
+        
+        /* Viewport */
+        .viewport { position:relative; width:100vw; height:100vh; display:flex; justify-content:center; align-items:flex-start; background:#050505; }
+        #preview { width:100%; height:auto; max-height:75vh; object-fit:contain; }
+        
+        /* UI Panel */
+        .ui { position:absolute; bottom:0; width:100%; height:25vh; background:rgba(10,10,10,0.95); border-top:1px solid #222; z-index:10; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom); }
+        
+        /* Recipe Dial */
+        .dial { display:flex; overflow-x:auto; padding:15px 10px; gap:10px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+        .dial::-webkit-scrollbar { display:none; }
+        .recipe-chip { padding:8px 16px; background:#1a1a1a; border:1px solid #333; color:#888; border-radius:4px; font-size:10px; white-space:nowrap; text-transform:uppercase; transition:0.2s; }
+        .recipe-chip.active { background:var(--fuji); color:#fff; border-color:var(--fuji); box-shadow:0 0 15px rgba(204,0,0,0.3); }
 
-        /* Viewport: Native Raw Sensor Size */
-        .viewport { position: relative; width: 100vw; height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
-        #preview { width: 100%; height: auto; max-height: 78vh; object-fit: contain; }
-
-        #flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 100; }
-        .flash-on { animation: f 0.1s ease-out; }
-        @keyframes f { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
-
-        /* --- FINAL INTEGRATED FILM SIM CSS --- */
-        .sim-eterna { filter: saturate(1.15) contrast(1.30) brightness(1.05); }
-        .sim-lo     { filter: saturate(0.75) contrast(1.25) brightness(0.97); }
-        .sim-lei    { filter: saturate(0.7) contrast(1.2) brightness(0.95) sepia(0.1) hue-rotate(-5deg);  }
-        .sim-urban  { filter: saturate(1.8) contrast(1.3)  brightness(1.05) hue-rotate(5deg) ;}
-
-        /* Control Panel */
-        .ui { position: absolute; bottom: 0; width: 100%; height: 22vh; background: rgba(5,5,5,0.98); display: flex; flex-direction: column; border-top: 1px solid #222; z-index: 10; padding-bottom: env(safe-area-inset-bottom); }
-        .dial { display: flex; overflow-x: auto; padding: 12px; gap: 8px; scrollbar-width: none; }
-        .dial::-webkit-scrollbar { display: none; }
-        .btn { padding: 8px 14px; border: 1px solid #333; background: #111; font-size: 10px; color: #555; border-radius: 2px; text-transform: uppercase; white-space: nowrap; }
-        .btn.active { background: var(--fuji); color: #fff; border-color: var(--fuji); }
-        .controls { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; }
-        .shutter { width: 72px; height: 72px; background: #fff; border-radius: 50%; border: 5px solid #222; box-shadow: 0 0 0 2px #fff; }
-        .label { font-size: 8px; color: #444; text-align: center; line-height: 1.5; }
+        /* Controls */
+        .controls { flex-grow:1; display:flex; justify-content:space-around; align-items:center; padding:0 20px; }
+        .shutter-btn { width:70px; height:70px; background:#fff; border-radius:50%; border:4px solid #222; box-shadow:0 0 0 2px #fff; active { transform:scale(0.95); } }
+        .status-text { font-size:9px; color:#444; text-align:center; line-height:1.4; }
+        
+        #flash { position:fixed; inset:0; background:white; opacity:0; pointer-events:none; z-index:100; }
+        .flash-active { animation: flash-anim 0.15s ease-out; }
+        @keyframes flash-anim { 0% { opacity:0; } 50% { opacity:1; } 100% { opacity:0; } }
     </style>
 </head>
 <body>
 
+<div id="flash"></div>
+
 <div class="viewport">
-    <video id="preview" class="sim-eterna" autoplay playsinline></video>
-    <div id="flash"></div>
+    <video id="preview" autoplay playsinline></video>
 </div>
 
 <div class="ui">
-    <div class="dial">
-        <button class="btn active" data-sim="eterna">ETERNA CINEMA</button>
-        <button class="btn" data-sim="lo">LO BLEACH FX</button>
-        <button class="btn" data-sim="lei">LEI CHROME FX</button>
-        <button class="btn" data-sim="urban">URBAN NEG</button>
-    </div>
+    <div class="dial" id="recipe-dial">
+        </div>
+    
     <div class="controls">
-        <div class="label">GRAIN<br><span id="grain-ui" style="color:#888">--</span></div>
-        <button class="shutter" id="shutter"></button>
-        <div class="label">SENSOR<br><span style="color:#888">RAW 4:3</span></div>
+        <div class="status-text">EV<br><span style="color:#888">AUTO</span></div>
+        <button class="shutter-btn" id="shutter"></button>
+        <div class="status-text">RECIPE<br><span id="mode-label" style="color:var(--fuji)">--</span></div>
     </div>
 </div>
 
@@ -61,85 +57,77 @@
 
 <script>
     const video = document.getElementById('preview');
-    const canvas = document.getElementById('buffer');
     const shutter = document.getElementById('shutter');
+    const recipeDial = document.getElementById('recipe-dial');
+    const modeLabel = document.getElementById('mode-label');
     const flash = document.getElementById('flash');
-    const grainUI = document.getElementById('grain-ui');
-    let currentMode = 'eterna';
+    
+    const recipes = [
+        { name: "Reggie Portra", sat: 0.9, con: 1.1, hue: 5, grain: 0.05 },
+        { name: "Kodachrome 64", sat: 1.1, con: 1.3, hue: -5, grain: 0.08 },
+        { name: "Pacific Blue", sat: 1.0, con: 1.2, hue: -18, grain: 0.1 },
+        { name: "Classic Neg", sat: 1.2, con: 1.2, hue: -10, grain: 0.08 },
+        { name: "Arizona Sun", sat: 1.4, con: 1.0, hue: 12, grain: 0.05 },
+        { name: "Tri-X 400", sat: 0, con: 1.6, hue: 0, grain: 0.3 },
+        { name: "CineStill 800", sat: 1.3, con: 1.1, hue: -25, grain: 0.12 },
+        { name: "Superia 400", sat: 1.1, con: 1.1, hue: -8, grain: 0.06 },
+        { name: "Acros Red", sat: 0, con: 1.8, hue: 0, grain: 0.15 },
+        { name: "Gold 200", sat: 1.2, con: 1.1, hue: 10, grain: 0.08 }
+    ];
 
-    async function init() {
-        const s = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment', width: { ideal: 4032 }, height: { ideal: 3024 } } 
+    let currentRecipe = recipes[0];
+
+    async function startCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } } 
         });
-        video.srcObject = s;
+        video.srcObject = stream;
     }
 
-    shutter.onclick = async () => {
-        flash.classList.add('flash-on');
-        setTimeout(() => flash.classList.remove('flash-on'), 100);
-        if (navigator.vibrate) navigator.vibrate(40);
-
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = video.videoWidth; 
-        canvas.height = video.videoHeight;
-
-        ctx.filter = getComputedStyle(video).filter;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ctx.filter = 'none';
-
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const d = imgData.data;
-        const randomGrain = (Math.random() * 0.20 + 0.05);
-        grainUI.innerText = Math.round(randomGrain * 100) + "%";
-
-        for (let i = 0; i < d.length; i += 4) {
-            let r = d[i], g = d[i+1], b = d[i+2];
-            const lum = (r + g + b) / 3;
-
-            // --- ETERNA CINEMA ENGINE ---
-            if (currentMode === 'eterna') {
-                // DR400: Lift Shadows, Screen Highlights
-                if (lum < 60) { d[i]+=15; d[i+1]+=15; d[i+2]+=15; }
-                if (lum > 200) { d[i]+=10; d[i+1]+=10; d[i+2]+=10; }
-                // Clarity +3 (Micro-contrast boost)
-                if (lum > 100 && lum < 180) { d[i]*=1.05; d[i+1]*=1.05; d[i+2]*=1.05; }
-            }
-
-            // LO BLEACH FX: Cold WB + Shadow Lift
-            if (currentMode === 'lo') {
-                d[i] -= 10; d[i+2] += 20;
-                if (lum < 50) { d[i] += 12; d[i+1] += 12; d[i+2] += 12; }
-            }
-
-            // LEI & URBAN WB Shifts
-            if (currentMode === 'lei') { d[i] += 5; d[i+2] -= 10; }
-            if (currentMode === 'urban') { d[i] += 10; d[i+2] -= 15; }
-
-            // Procedural Grain
-            const noise = (Math.random() - 0.5) * (randomGrain * 255);
-            d[i] += noise; d[i+1] += noise; d[i+2] += noise;
-        }
-        ctx.putImageData(imgData, 0, 0);
-
-        canvas.toBlob(b => {
-            const u = URL.createObjectURL(b);
-            const a = document.createElement('a');
-            a.href = u; a.download = `XPRO_${currentMode.toUpperCase()}.jpg`;
-            a.click();
-            URL.revokeObjectURL(u);
-        }, 'image/jpeg', 0.9);
-    };
-
-    document.querySelectorAll('.btn').forEach(b => {
-        b.onclick = () => {
-            document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
-            b.classList.add('active');
-            currentMode = b.dataset.sim;
-            video.className = 'sim-' + currentMode;
+    recipes.forEach(r => {
+        const chip = document.createElement('div');
+        chip.className = 'recipe-chip' + (r.name === currentRecipe.name ? ' active' : '');
+        chip.innerText = r.name;
+        chip.onclick = () => {
+            document.querySelectorAll('.recipe-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            currentRecipe = r;
+            modeLabel.innerText = r.name.toUpperCase();
+            video.style.filter = `saturate(${r.sat}) contrast(${r.con}) hue-rotate(${r.hue}deg)`;
         };
+        recipeDial.appendChild(chip);
     });
 
-    init();
+    shutter.onclick = () => {
+        flash.classList.add('flash-active');
+        setTimeout(() => flash.classList.remove('flash-active'), 150);
+        if(navigator.vibrate) navigator.vibrate(50);
+
+        const canvas = document.getElementById('buffer');
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        ctx.filter = video.style.filter;
+        ctx.drawImage(video, 0, 0);
+        
+        // Add Grain
+        const idat = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const d = idat.data;
+        for(let i=0; i<d.length; i+=4) {
+            const n = (Math.random()-0.5)*(currentRecipe.grain*255);
+            d[i]+=n; d[i+1]+=n; d[i+2]+=n;
+        }
+        ctx.putImageData(idat,0,0);
+
+        const link = document.createElement('a');
+        link.download = `XPRO_${currentRecipe.name.replace(' ','')}_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.click();
+    };
+
+    startCamera();
+    modeLabel.innerText = currentRecipe.name.toUpperCase();
 </script>
 </body>
 </html>
