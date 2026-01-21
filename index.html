@@ -6,50 +6,77 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>X-PRO1 MASTER</title>
+    <title>X-PRO1 MASTER | NATIVE</title>
     <style>
-        :root { --fuji: #cc0000; --bg: #000; }
-        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:'Courier New', monospace; overflow:hidden; color:#eee; }
+        :root { --fuji: #cc0000; }
+        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:'Courier New', monospace; overflow:hidden; }
         
-        /* Viewport */
-        .viewport { position:relative; width:100vw; height:100vh; display:flex; justify-content:center; align-items:flex-start; background:#050505; }
-        #preview { width:100%; height:auto; max-height:75vh; object-fit:contain; }
+        /* FULL SENSOR VIEWPORT */
+        .viewport { 
+            position: fixed; 
+            inset: 0; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 1;
+        }
         
-        /* UI Panel */
-        .ui { position:absolute; bottom:0; width:100%; height:25vh; background:rgba(10,10,10,0.95); border-top:1px solid #222; z-index:10; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom); }
+        #preview { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; /* Shows the full native sensor without cropping */
+            background: #000;
+        }
         
-        /* Recipe Dial */
-        .dial { display:flex; overflow-x:auto; padding:15px 10px; gap:10px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-        .dial::-webkit-scrollbar { display:none; }
-        .recipe-chip { padding:8px 16px; background:#1a1a1a; border:1px solid #333; color:#888; border-radius:4px; font-size:10px; white-space:nowrap; text-transform:uppercase; transition:0.2s; }
-        .recipe-chip.active { background:var(--fuji); color:#fff; border-color:var(--fuji); box-shadow:0 0 15px rgba(204,0,0,0.3); }
+        /* UI OVERLAY */
+        .ui-top {
+            position: absolute; top: 0; width: 100%; height: 60px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            z-index: 10; display: flex; align-items: center; justify-content: center;
+            font-size: 10px; color: #888; letter-spacing: 2px;
+        }
 
-        /* Controls */
-        .controls { flex-grow:1; display:flex; justify-content:space-around; align-items:center; padding:0 20px; }
-        .shutter-btn { width:70px; height:70px; background:#fff; border-radius:50%; border:4px solid #222; box-shadow:0 0 0 2px #fff; active { transform:scale(0.95); } }
-        .status-text { font-size:9px; color:#444; text-align:center; line-height:1.4; }
+        .ui-bottom { 
+            position: absolute; bottom: 0; width: 100%; height: 200px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            z-index: 10; display: flex; flex-direction: column; 
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        .dial { display:flex; overflow-x:auto; padding:20px; gap:10px; scrollbar-width:none; }
+        .dial::-webkit-scrollbar { display:none; }
+        .recipe-chip { 
+            padding:8px 16px; background:rgba(20,20,20,0.8); border:1px solid #333; 
+            color:#666; font-size:10px; white-space:nowrap; text-transform:uppercase; 
+        }
+        .recipe-chip.active { color:#fff; border-color:var(--fuji); background:var(--fuji); }
+
+        .shutter-row { display: flex; justify-content: space-around; align-items: center; flex-grow: 1; }
+        .shutter-btn { 
+            width: 70px; height: 70px; background: #fff; border-radius: 50%; 
+            border: 5px solid #222; box-shadow: 0 0 0 2px #fff; outline: none;
+        }
         
         #flash { position:fixed; inset:0; background:white; opacity:0; pointer-events:none; z-index:100; }
-        .flash-active { animation: flash-anim 0.15s ease-out; }
-        @keyframes flash-anim { 0% { opacity:0; } 50% { opacity:1; } 100% { opacity:0; } }
+        .flash-active { animation: f 0.1s ease-out; }
+        @keyframes f { 0% { opacity:0; } 50% { opacity:1; } 100% { opacity:0; } }
     </style>
 </head>
 <body>
 
 <div id="flash"></div>
+<div class="ui-top">SENSOR: <span id="res-label">DETECTING...</span></div>
 
 <div class="viewport">
     <video id="preview" autoplay playsinline></video>
 </div>
 
-<div class="ui">
-    <div class="dial" id="recipe-dial">
-        </div>
-    
-    <div class="controls">
-        <div class="status-text">EV<br><span style="color:#888">AUTO</span></div>
+<div class="ui-bottom">
+    <div class="dial" id="recipe-dial"></div>
+    <div class="shutter-row">
+        <div style="font-size:9px; color:#444;">AF-S<br>RAW</div>
         <button class="shutter-btn" id="shutter"></button>
-        <div class="status-text">RECIPE<br><span id="mode-label" style="color:var(--fuji)">--</span></div>
+        <div style="font-size:9px; color:#444;">ISO<br>AUTO</div>
     </div>
 </div>
 
@@ -58,76 +85,75 @@
 <script>
     const video = document.getElementById('preview');
     const shutter = document.getElementById('shutter');
-    const recipeDial = document.getElementById('recipe-dial');
-    const modeLabel = document.getElementById('mode-label');
-    const flash = document.getElementById('flash');
-    
+    const resLabel = document.getElementById('res-label');
     const recipes = [
         { name: "Reggie Portra", sat: 0.9, con: 1.1, hue: 5, grain: 0.05 },
         { name: "Kodachrome 64", sat: 1.1, con: 1.3, hue: -5, grain: 0.08 },
         { name: "Pacific Blue", sat: 1.0, con: 1.2, hue: -18, grain: 0.1 },
         { name: "Classic Neg", sat: 1.2, con: 1.2, hue: -10, grain: 0.08 },
-        { name: "Arizona Sun", sat: 1.4, con: 1.0, hue: 12, grain: 0.05 },
-        { name: "Tri-X 400", sat: 0, con: 1.6, hue: 0, grain: 0.3 },
-        { name: "CineStill 800", sat: 1.3, con: 1.1, hue: -25, grain: 0.12 },
-        { name: "Superia 400", sat: 1.1, con: 1.1, hue: -8, grain: 0.06 },
-        { name: "Acros Red", sat: 0, con: 1.8, hue: 0, grain: 0.15 },
-        { name: "Gold 200", sat: 1.2, con: 1.1, hue: 10, grain: 0.08 }
+        { name: "Tri-X 400", sat: 0, con: 1.6, hue: 0, grain: 0.3 }
     ];
 
-    let currentRecipe = recipes[0];
+    let current = recipes[0];
 
-    async function startCamera() {
+    async function init() {
+        // Request absolute maximum hardware resolution (Native Sensor)
         const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } } 
+            video: { 
+                facingMode: 'environment', 
+                width: { ideal: 9999 }, 
+                height: { ideal: 9999 } 
+            } 
         });
         video.srcObject = stream;
+        
+        video.onloadedmetadata = () => {
+            resLabel.innerText = `${video.videoWidth} x ${video.videoHeight}`;
+        };
     }
 
     recipes.forEach(r => {
-        const chip = document.createElement('div');
-        chip.className = 'recipe-chip' + (r.name === currentRecipe.name ? ' active' : '');
-        chip.innerText = r.name;
-        chip.onclick = () => {
+        const btn = document.createElement('div');
+        btn.className = 'recipe-chip' + (r === current ? ' active' : '');
+        btn.innerText = r.name;
+        btn.onclick = () => {
             document.querySelectorAll('.recipe-chip').forEach(c => c.classList.remove('active'));
-            chip.classList.add('active');
-            currentRecipe = r;
-            modeLabel.innerText = r.name.toUpperCase();
+            btn.classList.add('active');
+            current = r;
             video.style.filter = `saturate(${r.sat}) contrast(${r.con}) hue-rotate(${r.hue}deg)`;
         };
-        recipeDial.appendChild(chip);
+        document.getElementById('recipe-dial').appendChild(btn);
     });
 
     shutter.onclick = () => {
-        flash.classList.add('flash-active');
-        setTimeout(() => flash.classList.remove('flash-active'), 150);
-        if(navigator.vibrate) navigator.vibrate(50);
+        document.getElementById('flash').classList.add('flash-active');
+        setTimeout(() => document.getElementById('flash').classList.remove('flash-active'), 100);
 
         const canvas = document.getElementById('buffer');
         const ctx = canvas.getContext('2d');
+        // Capture at Native Sensor Resolution
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
         ctx.filter = video.style.filter;
         ctx.drawImage(video, 0, 0);
         
-        // Add Grain
+        // Pixel Grain Process
         const idat = ctx.getImageData(0,0,canvas.width,canvas.height);
         const d = idat.data;
         for(let i=0; i<d.length; i+=4) {
-            const n = (Math.random()-0.5)*(currentRecipe.grain*255);
+            const n = (Math.random()-0.5)*(current.grain*255);
             d[i]+=n; d[i+1]+=n; d[i+2]+=n;
         }
         ctx.putImageData(idat,0,0);
 
         const link = document.createElement('a');
-        link.download = `XPRO_${currentRecipe.name.replace(' ','')}_${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.download = `XPRO_RAW_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
         link.click();
     };
 
-    startCamera();
-    modeLabel.innerText = currentRecipe.name.toUpperCase();
+    init();
 </script>
 </body>
 </html>
