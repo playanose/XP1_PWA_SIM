@@ -4,54 +4,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>X-PRO1 MASTER</title>
     <style>
         :root { --fuji: #cc0000; }
-        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:monospace; overflow:hidden; }
+        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:monospace; overflow:hidden; -webkit-user-select:none; }
         
-        /* Viewport & Level Line */
+        /* Fast Viewport */
         .viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 1; }
         #preview { width: 100%; height: 100%; object-fit: contain; }
         
-        /* Horizon Level */
-        .horizon { 
-            position: absolute; top: 50%; left: 50%; width: 40%; height: 1px; 
-            background: rgba(255,255,255,0.3); transform: translate(-50%, -50%); 
-            z-index: 5; pointer-events: none; 
+        /* Right Side Exposure Slider */
+        .ev-container {
+            position: absolute; right: 10px; top: 20%; bottom: 40%; width: 40px;
+            z-index: 20; display: flex; flex-direction: column; align-items: center;
         }
-        .horizon::after { content:''; position:absolute; left:50%; top:-5px; width:1px; height:11px; background:rgba(255,255,255,0.5); }
+        #ev-slider {
+            appearance: none; width: 180px; height: 2px; background: rgba(255,255,255,0.3);
+            transform: rotate(-90deg); transform-origin: center; margin-top: 80px;
+            outline: none;
+        }
+        #ev-slider::-webkit-slider-thumb { appearance: none; width: 10px; height: 30px; background: #fff; border-radius: 1px; }
 
         .ui-footer { 
-            position: absolute; bottom: 0; width: 100%; height: 210px;
+            position: absolute; bottom: 0; width: 100%; height: 200px;
             background: linear-gradient(to top, rgba(0,0,0,0.95) 75%, transparent);
             z-index: 10; display: flex; flex-direction: column; 
             padding-bottom: env(safe-area-inset-bottom);
         }
         
-        .filter-nav { display: flex; justify-content: center; gap: 20px; padding: 10px 0; border-bottom: 1px solid #222; }
-        .nav-item { font-size: 10px; color: #444; letter-spacing: 1px; cursor: pointer; text-transform: uppercase; }
+        .filter-nav { display: flex; justify-content: center; gap: 30px; padding: 12px 0; border-bottom: 1px solid #222; }
+        .nav-item { font-size: 11px; color: #444; letter-spacing: 1px; cursor: pointer; }
         .nav-item.active { color: var(--fuji); font-weight: bold; }
 
-        .dial { display:flex; overflow-x:auto; padding:15px 10px; gap:8px; scrollbar-width:none; }
+        .dial { display:flex; overflow-x:auto; padding:15px 10px; gap:8px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
         .dial::-webkit-scrollbar { display:none; }
         
-        .recipe-chip { padding:10px 14px; background: rgba(25,25,25,0.8); border:1px solid #333; color:#666; font-size:10px; white-space:nowrap; }
+        .recipe-chip { padding:10px 16px; background: rgba(25,25,25,0.8); border:1px solid #333; color:#666; font-size:10px; white-space:nowrap; }
         .recipe-chip.active { color:#fff; border-color:var(--fuji); background:var(--fuji); }
 
         .shutter-row { display: flex; justify-content: space-around; align-items: center; flex-grow: 1; }
-        .shutter-btn { width: 70px; height: 70px; background: #fff; border-radius: 50%; border: 5px solid #111; box-shadow: 0 0 0 2px #fff; }
+        .shutter-btn { 
+            width: 72px; height: 72px; background: #fff; border-radius: 50%; 
+            border: 5px solid #111; box-shadow: 0 0 0 2px #fff; 
+        }
+        .shutter-btn:active { transform: scale(0.94); }
         
         #flash { position:fixed; inset:0; background:white; opacity:0; pointer-events:none; z-index:100; }
-        .f-on { animation: f 0.06s linear; }
+        .f-on { animation: f 0.05s linear; }
         @keyframes f { 0% { opacity:1; } 100% { opacity:0; } }
     </style>
 </head>
 <body>
 
 <div id="flash"></div>
+
 <div class="viewport">
-    <div class="horizon" id="level"></div>
     <video id="preview" autoplay playsinline></video>
+</div>
+
+<div class="ev-container">
+    <div style="font-size:10px; color:#fff; margin-bottom:10px;">EV</div>
+    <input type="range" id="ev-slider" min="0.5" max="1.5" step="0.05" value="1.0">
 </div>
 
 <div class="ui-footer">
@@ -61,9 +75,9 @@
     </div>
     <div class="dial" id="recipe-dial"></div>
     <div class="shutter-row">
-        <div style="font-size:9px; color:#444; text-align:center;">F-BAKE</div>
+        <div style="font-size:9px; color:#333; text-align:center;">F-FAST</div>
         <button class="shutter-btn" id="shutter"></button>
-        <div style="font-size:9px; color:#444; text-align:center;">LEVEL</div>
+        <div style="font-size:9px; color:#333; text-align:center;">RAW+J</div>
     </div>
 </div>
 
@@ -73,9 +87,8 @@
     const video = document.getElementById('preview');
     const shutter = document.getElementById('shutter');
     const dial = document.getElementById('recipe-dial');
-    const level = document.getElementById('level');
+    const evSlider = document.getElementById('ev-slider');
     
-    // ABBREVIATED 25 STYLE NAMES
     const recipes = [
         { n: "PORTRA", s: 0.9, c: 1.1, h: 5, g: 0.1, bw: false },
         { n: "KODA-64", s: 1.1, c: 1.3, h: -5, g: 0.15, bw: false },
@@ -111,17 +124,19 @@
             video: { facingMode: 'environment', width: { ideal: 4096 }, height: { ideal: 4096 } } 
         });
         video.srcObject = stream;
-        
-        // Motion for Level Line
-        window.addEventListener('deviceorientation', (e) => {
-            level.style.transform = `translate(-50%, -50%) rotate(${e.gamma}deg)`;
-            level.style.background = Math.abs(e.gamma) < 1 ? '#0f0' : 'rgba(255,255,255,0.3)';
-        });
         filterList('all');
     }
 
+    const getFilter = () => {
+        return `saturate(${active.s}) contrast(${active.c}) hue-rotate(${active.h}deg) brightness(${evSlider.value}) ${active.bw ? 'grayscale(1)' : ''}`;
+    };
+
+    evSlider.oninput = () => video.style.filter = getFilter();
+
     function filterList(mode) {
         dial.innerHTML = '';
+        document.getElementById('mode-all').classList.toggle('active', mode === 'all');
+        document.getElementById('mode-bw').classList.toggle('active', mode === 'bw');
         const filtered = mode === 'bw' ? recipes.filter(r => r.bw) : recipes;
         filtered.forEach(r => {
             const btn = document.createElement('div');
@@ -131,7 +146,7 @@
                 document.querySelectorAll('.recipe-chip').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 active = r;
-                video.style.filter = `saturate(${r.s}) contrast(${r.c}) hue-rotate(${r.h}deg) ${r.bw ? 'grayscale(1)' : ''}`;
+                video.style.filter = getFilter();
             };
             dial.appendChild(btn);
         });
@@ -140,17 +155,21 @@
     shutter.onclick = () => {
         document.getElementById('flash').classList.add('f-on');
         setTimeout(() => document.getElementById('flash').classList.remove('f-on'), 60);
+        if(navigator.vibrate) navigator.vibrate(40);
+
         const canvas = document.getElementById('buffer');
         const ctx = canvas.getContext('2d', { alpha: false });
         canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        ctx.filter = video.style.filter;
+        
+        ctx.filter = getFilter();
         ctx.drawImage(video, 0, 0);
+
         canvas.toBlob((blob) => {
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = `XPRO_${active.n}.jpg`;
             a.click();
-        }, 'image/jpeg', 0.92);
+        }, 'image/jpeg', 0.95);
     };
 
     init();
