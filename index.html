@@ -10,8 +10,8 @@
         :root { --fuji: #cc0000; }
         body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:monospace; overflow:hidden; -webkit-user-select:none; }
         
-        /* 1. Viewport (Clean) */
-        .viewport { position: relative; width: 100vw; height: 60vh; background:#000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        /* 1. Viewport */
+        .viewport { position: relative; width: 100vw; height: 62vh; background:#000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         #preview { width: 100%; height: 100%; object-fit: contain; }
         .mirror { transform: scaleX(-1); }
         .grid-overlay { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 5; }
@@ -19,28 +19,30 @@
         .grid-line-v { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.2); }
         .grid-line-h { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.2); }
 
-        /* 2. Style Label Bar (Under Viewfinder) */
+        /* 2. HUD Bar (Below Viewfinder) */
         .hud-bar { 
-            width: 100%; height: 40px; background: #0a0a0a; border-top: 1px solid #222; border-bottom: 1px solid #222;
-            display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-sizing: border-box;
+            width: 100%; height: 38px; background: #080808; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 15px; box-sizing: border-box;
         }
-        #hud-label { color: var(--fuji); font-weight: bold; letter-spacing: 2px; font-size: 14px; text-transform: uppercase; }
-        .hud-stats { color: #555; font-size: 10px; text-transform: uppercase; }
+        #hud-label { color: var(--fuji); font-weight: bold; letter-spacing: 2px; font-size: 13px; text-transform: uppercase; transition: opacity 0.1s; }
+        .hud-stats { color: #444; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+        .blink-act { animation: blinker 0.2s linear 2; }
+        @keyframes blinker { 50% { opacity: 0; } }
 
         /* 3. Controls */
-        .ev-container { position: absolute; right: 10px; top: 10%; bottom: 50%; width: 40px; z-index: 20; display: flex; flex-direction: column; align-items: center; }
-        #ev-slider { appearance: none; width: 150px; height: 2px; background: rgba(255,255,255,0.2); transform: rotate(-90deg); transform-origin: center; margin-top: 60px; outline: none; }
-        #ev-slider::-webkit-slider-thumb { appearance: none; width: 12px; height: 30px; background: #fff; border-radius: 1px; }
+        .ev-container { position: absolute; right: 10px; top: 10%; bottom: 30%; width: 40px; z-index: 20; display: flex; flex-direction: column; align-items: center; }
+        #ev-slider { appearance: none; width: 140px; height: 1px; background: rgba(255,255,255,0.2); transform: rotate(-90deg); transform-origin: center; margin-top: 60px; outline: none; }
+        #ev-slider::-webkit-slider-thumb { appearance: none; width: 10px; height: 25px; background: #fff; border: 1px solid #000; }
 
-        .ui-footer { position: relative; width: 100%; height: 35vh; background: #000; display: flex; flex-direction: column; }
-        .dial { display:flex; overflow-x:auto; padding:15px 10px; gap:8px; scrollbar-width:none; }
+        .ui-footer { position: relative; width: 100%; height: 34vh; background: #000; display: flex; flex-direction: column; }
+        .dial { display:flex; overflow-x:auto; padding:12px 10px; gap:8px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
         .dial::-webkit-scrollbar { display:none; }
-        .recipe-chip { padding:10px 16px; background: #151515; border:1px solid #333; color:#666; font-size:10px; white-space:nowrap; }
-        .recipe-chip.active { color:#fff; border-color:var(--fuji); background:var(--fuji); }
+        .recipe-chip { padding:10px 16px; background: #111; border:1px solid #222; color:#555; font-size:10px; white-space:nowrap; letter-spacing:1px; }
+        .recipe-chip.active { color:#fff; border-color:var(--fuji); background:var(--fuji); font-weight:bold; }
         
         .shutter-row { display: flex; justify-content: space-around; align-items: center; flex-grow: 1; padding-bottom: env(safe-area-inset-bottom); }
-        .shutter-btn { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #111; box-shadow: 0 0 0 2px #fff; }
-        .ctrl-btn { background: none; border: 1px solid #333; color: #777; font-size: 10px; padding: 10px 15px; border-radius: 4px; text-transform: uppercase; }
+        .shutter-btn { width: 72px; height: 72px; background: #fff; border-radius: 50%; border: 6px solid #111; box-shadow: 0 0 0 2px #fff; }
+        .ctrl-btn { background: none; border: 1px solid #222; color: #666; font-size: 9px; padding: 8px 12px; border-radius: 3px; text-transform: uppercase; min-width: 60px; }
         
         #flash { position:fixed; inset:0; background:white; opacity:0; pointer-events:none; z-index:100; }
         .f-on { animation: f 0.05s linear; }
@@ -56,12 +58,12 @@
         <div class="grid-line-v" style="left:33.3%"></div><div class="grid-line-v" style="left:66.6%"></div>
         <div class="grid-line-h" style="top:33.3%"></div><div class="grid-line-h" style="top:66.6%"></div>
     </div>
-    <div class="ev-container"><div style="font-size:10px;color:#fff;margin-bottom:10px;">EV</div><input type="range" id="ev-slider" min="0.5" max="1.5" step="0.05" value="1.0"></div>
+    <div class="ev-container"><div style="font-size:9px;color:#fff;opacity:0.5;">EV</div><input type="range" id="ev-slider" min="0.5" max="1.5" step="0.05" value="1.0"></div>
 </div>
 
 <div class="hud-bar">
     <div id="hud-label">PORTRA</div>
-    <div class="hud-stats" id="hud-stats">NATIVE • FINE GRAIN</div>
+    <div class="hud-stats" id="hud-stats">NATIVE HI-RES • 3:2</div>
 </div>
 
 <div class="ui-footer">
@@ -81,9 +83,13 @@
     const recipes = [
         { n: "PORTRA", s: 0.9, c: 1.1, h: 5, bw: false }, { n: "KODA-64", s: 1.1, c: 1.3, h: -5, bw: false }, { n: "PAC-BLUE", s: 1.0, c: 1.2, h: -18, bw: false },
         { n: "TRI-X", s: 0, c: 1.6, h: 0, bw: true }, { n: "ACROS", s: 0, c: 1.8, h: 0, bw: true }, { n: "HP5", s: 0, c: 1.2, h: 0, bw: true },
-        { n: "CL-NEG", s: 1.2, c: 1.2, h: -12, bw: false }, { n: "GOLD-200", s: 1.2, c: 1.1, h: 10, bw: false }, { n: "ASTIA", s: 1.2, c: 0.9, h: 2, bw: false },
+        { n: "CL-NEG", s: 1.2, c: 1.2, h: -12, bw: false }, { n: "SUPR-400", s: 1.1, c: 1.1, h: -8, bw: false }, { n: "CINE-800", s: 1.3, c: 1.1, h: -25, bw: false },
+        { n: "ILFORD", s: 0, c: 1.1, h: 0, bw: true }, { n: "GOLD-200", s: 1.2, c: 1.1, h: 10, bw: false }, { n: "ASTIA", s: 1.2, c: 0.9, h: 2, bw: false },
         { n: "VELVIA", s: 1.6, c: 1.4, h: 0, bw: false }, { n: "EKTAR", s: 1.5, c: 1.2, h: 5, bw: false }, { n: "HI-BW", s: 0, c: 2.0, h: 0, bw: true },
-        { n: "PROVIA", s: 1.0, c: 1.0, h: 0, bw: false }
+        { n: "URBN-CH", s: 0.8, c: 1.5, h: -5, bw: false }, { n: "NOST-NG", s: 1.1, c: 1.0, h: 6, bw: false }, { n: "ETERNA", s: 1.1, c: 0.8, h: 8, bw: false },
+        { n: "REALA", s: 1.1, c: 1.0, h: -2, bw: false }, { n: "BLEACH", s: 0.5, c: 1.7, h: -5, bw: false }, { n: "SEPIA", s: 0.4, c: 1.1, h: 10, bw: true },
+        { n: "MID-TEAL", s: 1.1, c: 1.3, h: -22, bw: false }, { n: "CHRO-PL", s: 0.8, c: 1.3, h: -3, bw: false }, { n: "PROVIA", s: 1.0, c: 1.0, h: 0, bw: false },
+        { n: "VNTG-KD", s: 0.8, c: 1.4, h: 3, bw: false }
     ];
 
     let active = recipes[0], currentStream, devices = [], currentDeviceIdx = 0;
@@ -112,7 +118,10 @@
             const b = document.createElement('div'); b.className = 'recipe-chip'; b.innerText = r.n;
             b.onclick = () => { 
                 document.querySelectorAll('.recipe-chip').forEach(c => c.classList.remove('active'));
-                b.classList.add('active'); active = r; hudLabel.innerText = r.n; video.style.filter = getFilter(); 
+                b.classList.add('active'); active = r; 
+                hudLabel.innerText = r.n; 
+                hudLabel.classList.remove('blink-act'); void hudLabel.offsetWidth; hudLabel.classList.add('blink-act');
+                video.style.filter = getFilter(); 
             };
             dial.appendChild(b);
         });
@@ -123,8 +132,8 @@
         document.getElementById('flash').classList.add('f-on'); setTimeout(() => document.getElementById('flash').classList.remove('f-on'), 60);
         const c = document.getElementById('buffer'), ctx = c.getContext('2d');
         c.width = video.videoWidth; c.height = video.videoHeight;
+        if(c.width === 0) return;
         ctx.filter = getFilter(); ctx.drawImage(video, 0, 0); ctx.filter = 'none';
-        
         let grain = (Math.random() * 0.15 + 0.05); if(active.bw) grain *= 1.8;
         ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = grain;
         for (let i = 0; i < 80; i++) {
@@ -132,7 +141,7 @@
             let size = Math.max(1, c.width/2800);
             ctx.fillRect(Math.random()*c.width, Math.random()*c.height, size, size);
         }
-        hudStats.innerText = `BAKED • ${Math.round(grain*100)}% GRAIN`;
+        hudStats.innerText = `FILM BAKE • ${Math.round(grain*100)}% GRAIN`;
         c.toBlob(b => {
             const a = document.createElement('a'), u = URL.createObjectURL(b);
             a.href = u; a.download = `XPRO_${Date.now()}.jpg`; a.click();
