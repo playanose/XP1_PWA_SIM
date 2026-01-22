@@ -9,29 +9,41 @@
     <style>
         :root { --fuji: #cc0000; }
         body, html { margin:0; padding:0; width:100%; height:100%; background:#000; font-family:monospace; overflow:hidden; -webkit-user-select:none; }
-        .viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 1; }
+        
+        /* 1. Viewport */
+        .viewport { position: relative; width: 100vw; height: 62vh; background:#000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         #preview { width: 100%; height: 100%; object-fit: contain; }
         .mirror { transform: scaleX(-1); }
         .grid-overlay { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 5; }
         .grid-overlay.active { display: block; }
         .grid-line-v { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.2); }
         .grid-line-h { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.2); }
-        .ev-container { position: absolute; right: 10px; top: 20%; bottom: 40%; width: 40px; z-index: 20; display: flex; flex-direction: column; align-items: center; }
-        #ev-slider { appearance: none; width: 180px; height: 2px; background: rgba(255,255,255,0.3); transform: rotate(-90deg); transform-origin: center; margin-top: 80px; outline: none; }
-        #ev-slider::-webkit-slider-thumb { appearance: none; width: 12px; height: 32px; background: #fff; border-radius: 1px; border: 1px solid #000; }
-        .ui-footer { position: absolute; bottom: 0; width: 100%; height: 210px; background: linear-gradient(to top, rgba(0,0,0,0.95) 75%, transparent); z-index: 10; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
-        .filter-nav { display: flex; justify-content: center; gap: 30px; padding: 12px 0; border-bottom: 1px solid #222; }
-        .nav-item { font-size: 11px; color: #444; letter-spacing: 1px; cursor: pointer; }
-        .nav-item.active { color: var(--fuji); font-weight: bold; }
-        .dial { display:flex; overflow-x:auto; padding:15px 10px; gap:8px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+
+        /* 2. HUD Bar */
+        .hud-bar { 
+            width: 100%; height: 38px; background: #080808; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 15px; box-sizing: border-box;
+        }
+        #hud-label { color: var(--fuji); font-weight: bold; letter-spacing: 2px; font-size: 13px; text-transform: uppercase; }
+        .hud-stats { color: #444; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+        .blink-act { animation: blinker 0.2s linear 1; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        /* 3. Controls */
+        .ev-container { position: absolute; right: 10px; top: 10%; bottom: 30%; width: 40px; z-index: 20; display: flex; flex-direction: column; align-items: center; }
+        #ev-slider { appearance: none; width: 140px; height: 1px; background: rgba(255,255,255,0.2); transform: rotate(-90deg); transform-origin: center; margin-top: 60px; outline: none; }
+        #ev-slider::-webkit-slider-thumb { appearance: none; width: 10px; height: 25px; background: #fff; }
+
+        .ui-footer { position: relative; width: 100%; height: 34vh; background: #000; display: flex; flex-direction: column; }
+        .dial { display:flex; overflow-x:auto; padding:12px 10px; gap:8px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
         .dial::-webkit-scrollbar { display:none; }
-        .recipe-chip { padding:10px 16px; background: rgba(25,25,25,0.8); border:1px solid #333; color:#666; font-size:10px; white-space:nowrap; text-transform:uppercase; }
+        .recipe-chip { padding:10px 16px; background: #111; border:1px solid #222; color:#555; font-size:10px; white-space:nowrap; }
         .recipe-chip.active { color:#fff; border-color:var(--fuji); background:var(--fuji); font-weight:bold; }
-        .shutter-row { display: flex; justify-content: space-around; align-items: center; flex-grow: 1; padding: 0 10px; }
-        .shutter-btn { width: 72px; height: 72px; background: #fff; border-radius: 50%; border: 5px solid #111; box-shadow: 0 0 0 2px #fff; }
-        .shutter-btn:active { transform: scale(0.92); }
-        .ctrl-btn { background: none; border: 1px solid #444; color: #aaa; font-size: 9px; padding: 8px 10px; font-family: monospace; border-radius: 4px; text-transform: uppercase; min-width: 60px; }
-        .ctrl-btn.on { color: var(--fuji); border-color: var(--fuji); }
+        
+        .shutter-row { display: flex; justify-content: space-around; align-items: center; flex-grow: 1; padding-bottom: env(safe-area-inset-bottom); }
+        .shutter-btn { width: 72px; height: 72px; background: #fff; border-radius: 50%; border: 6px solid #111; box-shadow: 0 0 0 2px #fff; }
+        .ctrl-btn { background: none; border: 1px solid #222; color: #666; font-size: 9px; padding: 8px 12px; border-radius: 3px; text-transform: uppercase; }
+        
         #flash { position:fixed; inset:0; background:white; opacity:0; pointer-events:none; z-index:100; }
         .f-on { animation: f 0.05s linear; }
         @keyframes f { 0% { opacity:1; } 100% { opacity:0; } }
@@ -39,26 +51,36 @@
 </head>
 <body>
 <div id="flash"></div>
+
 <div class="viewport">
+    <video id="preview" autoplay playsinline></video>
     <div class="grid-overlay" id="grid">
         <div class="grid-line-v" style="left:33.3%"></div><div class="grid-line-v" style="left:66.6%"></div>
         <div class="grid-line-h" style="top:33.3%"></div><div class="grid-line-h" style="top:66.6%"></div>
     </div>
-    <video id="preview" autoplay playsinline></video>
+    <div class="ev-container"><div style="font-size:9px;color:#fff;opacity:0.5;">EV</div><input type="range" id="ev-slider" min="0.5" max="1.5" step="0.05" value="1.0"></div>
 </div>
-<div class="ev-container"><div style="font-size:10px;color:#fff;margin-bottom:10px;">EV</div><input type="range" id="ev-slider" min="0.5" max="1.5" step="0.05" value="1.0"></div>
+
+<div class="hud-bar">
+    <div id="hud-label">PORTRA</div>
+    <div class="hud-stats" id="hud-stats">RANDOM GRAIN ACTIVE</div>
+</div>
+
 <div class="ui-footer">
-    <div class="filter-nav"><span class="nav-item active" id="mode-all" onclick="filterList('all')">ALL</span><span class="nav-item" id="mode-bw" onclick="filterList('bw')">B&W</span></div>
     <div class="dial" id="recipe-dial"></div>
     <div class="shutter-row">
         <button class="ctrl-btn" onclick="switchLens()">Lens</button>
         <button class="shutter-btn" id="shutter"></button>
-        <button class="ctrl-btn" id="grid-btn" onclick="toggleGrid()">Grid</button>
+        <button class="ctrl-btn" onclick="toggleGrid()">Grid</button>
     </div>
 </div>
+
 <canvas id="buffer" style="display:none;"></canvas>
+
 <script>
-    const video = document.getElementById('preview'), shutter = document.getElementById('shutter'), dial = document.getElementById('recipe-dial'), evSlider = document.getElementById('ev-slider'), grid = document.getElementById('grid'), gridBtn = document.getElementById('grid-btn');
+    const video = document.getElementById('preview'), shutter = document.getElementById('shutter'), dial = document.getElementById('recipe-dial'), evSlider = document.getElementById('ev-slider'), hudLabel = document.getElementById('hud-label'), hudStats = document.getElementById('hud-stats');
+    
+    // THE 25 STYLES
     const recipes = [
         { n: "PORTRA", s: 0.9, c: 1.1, h: 5, bw: false }, { n: "KODA-64", s: 1.1, c: 1.3, h: -5, bw: false }, { n: "PAC-BLUE", s: 1.0, c: 1.2, h: -18, bw: false },
         { n: "TRI-X", s: 0, c: 1.6, h: 0, bw: true }, { n: "ACROS", s: 0, c: 1.8, h: 0, bw: true }, { n: "HP5", s: 0, c: 1.2, h: 0, bw: true },
@@ -70,72 +92,76 @@
         { n: "MID-TEAL", s: 1.1, c: 1.3, h: -22, bw: false }, { n: "CHRO-PL", s: 0.8, c: 1.3, h: -3, bw: false }, { n: "PROVIA", s: 1.0, c: 1.0, h: 0, bw: false },
         { n: "VNTG-KD", s: 0.8, c: 1.4, h: 3, bw: false }
     ];
-    let active = recipes[0], currentStream, devices = [], currentDeviceIdx = 0;
 
-    async function getDevices() {
-        const d = await navigator.mediaDevices.enumerateDevices();
-        devices = d.filter(device => device.kind === 'videoinput');
-    }
+    let active = recipes[0], currentStream, currentDeviceIdx = 0;
 
     async function startCamera(deviceId) {
         if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-        const constraints = { video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: { ideal: 3840 }, height: { ideal: 2160 } } };
-        try {
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = currentStream;
-            const track = currentStream.getVideoTracks()[0].getSettings();
-            if (track.facingMode === 'user') video.classList.add('mirror'); else video.classList.remove('mirror');
-            video.style.filter = getFilter();
-        } catch(e) { console.error("Camera access denied"); }
+        currentStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: { ideal: 4096 }, height: { ideal: 4096 } } });
+        video.srcObject = currentStream;
+        const settings = currentStream.getVideoTracks()[0].getSettings();
+        video.classList.toggle('mirror', settings.facingMode === 'user');
+        video.style.filter = getFilter();
     }
 
-    async function switchLens() { currentDeviceIdx = (currentDeviceIdx + 1) % devices.length; await startCamera(devices[currentDeviceIdx].deviceId); }
-    function toggleGrid() { grid.classList.toggle('active'); gridBtn.classList.toggle('on'); }
     const getFilter = () => `saturate(${active.s}) contrast(${active.c}) hue-rotate(${active.h}deg) brightness(${evSlider.value}) ${active.bw ? 'grayscale(1)' : ''}`;
     evSlider.oninput = () => video.style.filter = getFilter();
+    function toggleGrid() { document.getElementById('grid').classList.toggle('active'); }
+    async function switchLens() { 
+        const d = await navigator.mediaDevices.enumerateDevices();
+        const devices = d.filter(device => device.kind === 'videoinput');
+        currentDeviceIdx = (currentDeviceIdx + 1) % devices.length;
+        await startCamera(devices[currentDeviceIdx].deviceId);
+    }
 
-    function filterList(m) {
-        dial.innerHTML = ''; document.getElementById('mode-all').classList.toggle('active', m === 'all'); document.getElementById('mode-bw').classList.toggle('active', m === 'bw');
-        const f = m === 'bw' ? recipes.filter(r => r.bw) : recipes;
-        f.forEach(r => {
-            const b = document.createElement('div'); b.className = 'recipe-chip' + (r === active ? ' active' : ''); b.innerText = r.n;
-            b.onclick = () => { document.querySelectorAll('.recipe-chip').forEach(c => c.classList.remove('active')); b.classList.add('active'); active = r; video.style.filter = getFilter(); };
+    function initRecipes() {
+        recipes.forEach(r => {
+            const b = document.createElement('div'); b.className = 'recipe-chip'; b.innerText = r.n;
+            b.onclick = () => { 
+                document.querySelectorAll('.recipe-chip').forEach(c => c.classList.remove('active'));
+                b.classList.add('active'); active = r; hudLabel.innerText = r.n;
+                hudLabel.classList.remove('blink-act'); void hudLabel.offsetWidth; hudLabel.classList.add('blink-act');
+                video.style.filter = getFilter(); 
+            };
             dial.appendChild(b);
         });
+        dial.firstChild.classList.add('active');
     }
 
     shutter.onclick = () => {
-        const fl = document.getElementById('flash'); fl.classList.add('f-on'); setTimeout(() => fl.classList.remove('f-on'), 60); if(navigator.vibrate) navigator.vibrate(40);
-        const c = document.getElementById('buffer'), ctx = c.getContext('2d', { alpha: false });
+        document.getElementById('flash').classList.add('f-on'); setTimeout(() => document.getElementById('flash').classList.remove('f-on'), 60);
+        const c = document.getElementById('buffer'), ctx = c.getContext('2d');
         c.width = video.videoWidth; c.height = video.videoHeight;
-        
-        // Safety check for empty video
         if(c.width === 0) return;
-
-        ctx.filter = getFilter(); 
-        ctx.drawImage(video, 0, 0);
-
-        // Reset Filter for Grain
-        ctx.filter = 'none';
-        let gAlpha = (Math.random() * 0.15 + 0.05); if(active.bw) gAlpha *= 1.8;
-        ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = gAlpha;
-        for (let i = 0; i < 80; i++) {
+        
+        ctx.filter = getFilter(); ctx.drawImage(video, 0, 0); ctx.filter = 'none';
+        
+        // --- RANDOM GRAIN LOGIC ---
+        // Generates a random alpha (intensity) for this specific shot
+        let grainAlpha = (Math.random() * 0.15 + 0.05); // 5% to 20%
+        if(active.bw) grainAlpha *= 1.5; // B&W styles get more texture
+        
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.globalAlpha = grainAlpha;
+        
+        // Randomly place 120 unique grain particles
+        for (let i = 0; i < 120; i++) {
             ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
-            const size = Math.max(1, c.width/2500);
+            let size = Math.max(1, c.width/2200); 
             ctx.fillRect(Math.random()*c.width, Math.random()*c.height, size, size);
         }
-        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1.0;
         
-        const n = new Date(), ts = n.getFullYear() + (n.getMonth()+1).toString().padStart(2,'0') + n.getDate().toString().padStart(2,'0') + "_" + n.getHours().toString().padStart(2,'0') + n.getMinutes().toString().padStart(2,'0') + n.getSeconds().toString().padStart(2,'0');
+        hudStats.innerText = `GRAIN BAKE: ${Math.round(grainAlpha * 100)}%`;
+        ctx.globalAlpha = 1.0; ctx.globalCompositeOperation = 'source-over';
         
-        c.toBlob((b) => {
+        c.toBlob(b => {
             const a = document.createElement('a'), u = URL.createObjectURL(b);
-            a.href = u; a.download = `XPRO_${ts}.jpg`; a.click();
-            setTimeout(() => URL.revokeObjectURL(u), 500); // Fixed Memory Bug
+            a.href = u; a.download = `XPRO_${Date.now()}.jpg`; a.click();
+            setTimeout(() => URL.revokeObjectURL(u), 500);
         }, 'image/jpeg', 0.95);
     };
 
-    (async () => { await getDevices(); await startCamera(); filterList('all'); })();
+    initRecipes(); startCamera();
 </script>
 </body>
 </html>
