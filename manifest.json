@@ -1,15 +1,14 @@
 {
   "name": "X-PRO1 MASTER",
-  "short_name": "X-PRO1",
-  "description": "2025 Fujifilm Film Simulation Camera",
-  "start_url": "./index.html",
+  "short_name": "XPRO1",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/685/685655.png",
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
